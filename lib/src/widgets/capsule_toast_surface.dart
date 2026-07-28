@@ -17,6 +17,8 @@ class CapsuleToastSurface extends StatelessWidget {
     super.key,
     required this.theme,
     required this.child,
+    this.measureMaxWidth,
+    this.liveSize,
   });
 
   /// Fully resolved visual theme for this surface.
@@ -25,19 +27,57 @@ class CapsuleToastSurface extends StatelessWidget {
   /// Structured toast content painted inside the capsule.
   final Widget child;
 
+  /// Maximum width used when measuring unconstrained content.
+  final double? measureMaxWidth;
+
+  /// Live spring-driven size used for clipping and corner radius.
+  final Size? liveSize;
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
-        final double maxWidth = math.min(
-          theme.maximumWidth!,
-          constraints.maxWidth - 2 * theme.horizontalInset!,
+        final double maxWidth =
+            measureMaxWidth ??
+            math.min(
+              theme.maximumWidth!,
+              constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : theme.maximumWidth!,
+            );
+        final Size? clipSize = liveSize;
+        final Widget body = _CapsuleToastSurfaceBody(
+          theme: theme,
+          liveHeight: clipSize?.height,
+          child: child,
         );
+
+        if (clipSize == null ||
+            !constraints.hasTightWidth ||
+            !constraints.hasTightHeight) {
+          return RepaintBoundary(
+            key: capsuleSurfaceKey,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxWidth),
+              child: body,
+            ),
+          );
+        }
+
         return RepaintBoundary(
           key: capsuleSurfaceKey,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: _CapsuleToastSurfaceBody(theme: theme, child: child),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(
+              math.min(clipSize.height / 2, theme.radiusCap!),
+            ),
+            child: OverflowBox(
+              alignment: Alignment.topCenter,
+              minWidth: 0,
+              maxWidth: maxWidth,
+              minHeight: 0,
+              maxHeight: double.infinity,
+              child: body,
+            ),
           ),
         );
       },
@@ -48,14 +88,21 @@ class CapsuleToastSurface extends StatelessWidget {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties.add(DiagnosticsProperty<CapsuleToastThemeData>('theme', theme));
+    properties.add(DoubleProperty('measureMaxWidth', measureMaxWidth));
+    properties.add(DiagnosticsProperty<Size?>('liveSize', liveSize));
   }
 }
 
 class _CapsuleToastSurfaceBody extends StatefulWidget {
-  const _CapsuleToastSurfaceBody({required this.theme, required this.child});
+  const _CapsuleToastSurfaceBody({
+    required this.theme,
+    required this.child,
+    this.liveHeight,
+  });
 
   final CapsuleToastThemeData theme;
   final Widget child;
+  final double? liveHeight;
 
   @override
   State<_CapsuleToastSurfaceBody> createState() =>
@@ -87,9 +134,9 @@ class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
 
   @override
   Widget build(BuildContext context) {
-    final double radius = _laidOutSize == null
-        ? widget.theme.radiusCap!
-        : math.min(_laidOutSize!.height / 2, widget.theme.radiusCap!);
+    final double radiusHeight =
+        widget.liveHeight ?? _laidOutSize?.height ?? widget.theme.radiusCap!;
+    final double radius = math.min(radiusHeight / 2, widget.theme.radiusCap!);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),

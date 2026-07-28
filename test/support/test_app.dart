@@ -4,12 +4,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
+import 'package:capsule_toast/src/motion/capsule_motion_controller.dart';
+import 'package:capsule_toast/src/widgets/capsule_toast_layer.dart';
 
+export 'package:capsule_toast/src/motion/capsule_motion_controller.dart'
+    show CapsuleMotionController, CapsuleMotionSnapshot;
 export 'package:capsule_toast/src/widgets/capsule_toast_surface.dart'
     show capsuleSurfaceKey;
 
 /// No-op action callback for const test fixtures.
 void noop() {}
+
+/// Bundles manager, handle, and motion controller for widget tests.
+final class ToastTestHarness {
+  /// Creates a harness around one pumped toast presentation.
+  const ToastTestHarness({
+    required this.manager,
+    required this.handle,
+    required this.motion,
+  });
+
+  /// Host-owned toast manager.
+  final CapsuleToastManager manager;
+
+  /// Handle for the toast shown by [pumpToastHarness].
+  final CapsuleToastHandle handle;
+
+  /// Host-owned motion controller driving the active capsule.
+  final CapsuleMotionController motion;
+}
 
 /// Wraps [child] in a [MaterialApp] with a [CapsuleToastHost] installed via
 /// [MaterialApp.builder].
@@ -33,8 +56,6 @@ Future<BuildContext> pumpToast(
   EdgeInsets viewPadding = EdgeInsets.zero,
 }) async {
   late BuildContext commandContext;
-  final CapsuleToastMotionTheme motionTheme =
-      CapsuleToastMotionTheme.fallback();
   await tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData(
@@ -63,8 +84,43 @@ Future<BuildContext> pumpToast(
   CapsuleToastHost.of(commandContext).show(toast);
   await tester.pump();
   if (settle) {
-    await tester.pump(motionTheme.appearanceDuration!);
-    await tester.pumpAndSettle();
+    // Advance through the reference settle window. Avoid pumpAndSettle so
+    // persistent loading glyphs and hold clocks do not hang the harness.
+    await tester.pump(const Duration(milliseconds: 520));
   }
   return commandContext;
+}
+
+/// Pumps [toast] and returns manager, handle, and motion for inspection.
+Future<ToastTestHarness> pumpToastHarness(
+  WidgetTester tester,
+  CapsuleToastData toast, {
+  bool settle = true,
+  bool disableAnimations = false,
+}) async {
+  final BuildContext context = await pumpToast(
+    tester,
+    toast,
+    settle: settle,
+    disableAnimations: disableAnimations,
+  );
+  final CapsuleToastManager manager = CapsuleToastHost.of(context);
+  final CapsuleToastLayer layer = tester.widget(find.byType(CapsuleToastLayer));
+  return ToastTestHarness(
+    manager: manager,
+    handle: layer.coordinator.active!.handle,
+    motion: layer.motion,
+  );
+}
+
+/// Current spring-driven capsule size.
+Size capsuleSize(WidgetTester tester) => capsuleMotion(tester).size;
+
+/// Current capsule opacity from the motion snapshot.
+double capsuleOpacity(WidgetTester tester) => capsuleMotion(tester).opacity;
+
+/// Current motion snapshot for the active capsule.
+CapsuleMotionSnapshot capsuleMotion(WidgetTester tester) {
+  final CapsuleToastLayer layer = tester.widget(find.byType(CapsuleToastLayer));
+  return layer.motion.value;
 }

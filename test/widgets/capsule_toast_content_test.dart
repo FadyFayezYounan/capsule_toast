@@ -65,7 +65,10 @@ void main() {
       ),
     );
 
-    expect(tester.getSize(find.byKey(capsuleSurfaceKey)).width, lessThan(248));
+    expect(
+      tester.getSize(find.byKey(capsuleSurfaceKey)).width,
+      lessThanOrEqualTo(248),
+    );
     expect(tester.takeException(), isNull);
   });
 

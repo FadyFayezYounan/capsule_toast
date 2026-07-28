@@ -2,8 +2,12 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../manager/capsule_toast_coordinator.dart';
 import '../manager/capsule_toast_manager.dart';
+import '../motion/capsule_motion_controller.dart';
+import '../theme/capsule_toast_motion_theme.dart';
+import '../theme/capsule_toast_theme.dart';
 import '../widgets/capsule_toast_layer.dart';
 
 /// Application-owned host that exposes toast queue control to descendants.
@@ -75,6 +79,7 @@ class CapsuleToastHost extends StatefulWidget {
 class _CapsuleToastHostState extends State<CapsuleToastHost>
     with TickerProviderStateMixin {
   late final CapsuleToastCoordinator _coordinator;
+  CapsuleMotionController? _motion;
 
   @override
   void initState() {
@@ -82,6 +87,25 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
     _coordinator = CapsuleToastCoordinator(
       maximumQueueLength: widget.maximumQueueLength,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
+      context,
+    );
+    final CapsuleMotionController? existing = _motion;
+    if (existing == null) {
+      _motion = CapsuleMotionController(
+        vsync: this,
+        motionTheme: motionTheme,
+        onHoldElapsed: _coordinator.timeoutActive,
+        onExitCompleted: _coordinator.finishActiveExit,
+      );
+    } else {
+      existing.updateMotionTheme(motionTheme);
+    }
   }
 
   @override
@@ -94,6 +118,8 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
 
   @override
   void dispose() {
+    _motion?.dispose();
+    _motion = null;
     _coordinator.dispose();
     super.dispose();
   }
@@ -107,7 +133,11 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
         clipBehavior: Clip.none,
         children: <Widget>[
           widget.child,
-          CapsuleToastLayer(coordinator: _coordinator, vsync: this),
+          CapsuleToastLayer(
+            coordinator: _coordinator,
+            motion: _motion!,
+            vsync: this,
+          ),
         ],
       ),
     );
