@@ -6,7 +6,7 @@ import 'package:capsule_toast/capsule_toast.dart';
 
 void main() {
   test('semantic factories select type and leave copy caller-owned', () {
-    const CapsuleToastData toast = CapsuleToastData.success(
+    final CapsuleToastData toast = CapsuleToastData.success(
       id: 'save',
       title: 'Saved',
       message: 'Your changes are available.',
@@ -20,7 +20,7 @@ void main() {
   });
 
   test('loading is persistent by default', () {
-    const CapsuleToastData toast = CapsuleToastData.loading(title: 'Uploading');
+    final CapsuleToastData toast = CapsuleToastData.loading(title: 'Uploading');
 
     expect(toast.type, CapsuleToastType.loading);
     expect(toast.persistent, isTrue);
@@ -33,6 +33,25 @@ void main() {
         persistent: true,
         displayDuration: Duration(seconds: 1),
       ),
+      throwsAssertionError,
+    );
+  });
+
+  test('negative displayDuration is rejected by constructor', () {
+    expect(
+      () => CapsuleToastData.neutral(
+        title: 'Invalid',
+        displayDuration: Duration(milliseconds: -1),
+      ),
+      throwsAssertionError,
+    );
+  });
+
+  test('copyWith negative displayDuration throws', () {
+    final CapsuleToastData toast = CapsuleToastData.success(title: 'Saved');
+
+    expect(
+      () => toast.copyWith(displayDuration: Duration(milliseconds: -1)),
       throwsAssertionError,
     );
   });

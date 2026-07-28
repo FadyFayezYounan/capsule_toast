@@ -31,8 +31,13 @@ class CapsuleToastData with Diagnosticable {
        assert(icon == null || iconBuilder == null),
        assert(!persistent || displayDuration == null);
 
+  static void _assertDurationRules(Duration? displayDuration, bool persistent) {
+    assert(displayDuration == null || !displayDuration.isNegative);
+    assert(!persistent || displayDuration == null);
+  }
+
   /// Creates success feedback toast data.
-  const CapsuleToastData.success({
+  factory CapsuleToastData.success({
     Object? id,
     required String title,
     String? message,
@@ -47,26 +52,29 @@ class CapsuleToastData with Diagnosticable {
     Duration? displayDuration,
     bool persistent = false,
     TextDirection? textDirection,
-  }) : this._(
-         type: CapsuleToastType.success,
-         id: id,
-         title: title,
-         message: message,
-         semanticAnnouncement: semanticAnnouncement,
-         initialMode: initialMode,
-         glyph: glyph,
-         icon: icon,
-         iconBuilder: iconBuilder,
-         compactAction: compactAction,
-         primaryAction: primaryAction,
-         secondaryAction: secondaryAction,
-         displayDuration: displayDuration,
-         persistent: persistent,
-         textDirection: textDirection,
-       );
+  }) {
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.success,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      glyph: glyph,
+      icon: icon,
+      iconBuilder: iconBuilder,
+      compactAction: compactAction,
+      primaryAction: primaryAction,
+      secondaryAction: secondaryAction,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      textDirection: textDirection,
+    );
+  }
 
   /// Creates informational feedback toast data.
-  const CapsuleToastData.information({
+  factory CapsuleToastData.information({
     Object? id,
     required String title,
     String? message,
@@ -81,26 +89,29 @@ class CapsuleToastData with Diagnosticable {
     Duration? displayDuration,
     bool persistent = false,
     TextDirection? textDirection,
-  }) : this._(
-         type: CapsuleToastType.information,
-         id: id,
-         title: title,
-         message: message,
-         semanticAnnouncement: semanticAnnouncement,
-         initialMode: initialMode,
-         glyph: glyph,
-         icon: icon,
-         iconBuilder: iconBuilder,
-         compactAction: compactAction,
-         primaryAction: primaryAction,
-         secondaryAction: secondaryAction,
-         displayDuration: displayDuration,
-         persistent: persistent,
-         textDirection: textDirection,
-       );
+  }) {
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.information,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      glyph: glyph,
+      icon: icon,
+      iconBuilder: iconBuilder,
+      compactAction: compactAction,
+      primaryAction: primaryAction,
+      secondaryAction: secondaryAction,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      textDirection: textDirection,
+    );
+  }
 
   /// Creates warning feedback toast data.
-  const CapsuleToastData.warning({
+  factory CapsuleToastData.warning({
     Object? id,
     required String title,
     String? message,
@@ -115,26 +126,29 @@ class CapsuleToastData with Diagnosticable {
     Duration? displayDuration,
     bool persistent = false,
     TextDirection? textDirection,
-  }) : this._(
-         type: CapsuleToastType.warning,
-         id: id,
-         title: title,
-         message: message,
-         semanticAnnouncement: semanticAnnouncement,
-         initialMode: initialMode,
-         glyph: glyph,
-         icon: icon,
-         iconBuilder: iconBuilder,
-         compactAction: compactAction,
-         primaryAction: primaryAction,
-         secondaryAction: secondaryAction,
-         displayDuration: displayDuration,
-         persistent: persistent,
-         textDirection: textDirection,
-       );
+  }) {
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.warning,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      glyph: glyph,
+      icon: icon,
+      iconBuilder: iconBuilder,
+      compactAction: compactAction,
+      primaryAction: primaryAction,
+      secondaryAction: secondaryAction,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      textDirection: textDirection,
+    );
+  }
 
   /// Creates error feedback toast data.
-  const CapsuleToastData.error({
+  factory CapsuleToastData.error({
     Object? id,
     required String title,
     String? message,
@@ -149,26 +163,29 @@ class CapsuleToastData with Diagnosticable {
     Duration? displayDuration,
     bool persistent = false,
     TextDirection? textDirection,
-  }) : this._(
-         type: CapsuleToastType.error,
-         id: id,
-         title: title,
-         message: message,
-         semanticAnnouncement: semanticAnnouncement,
-         initialMode: initialMode,
-         glyph: glyph,
-         icon: icon,
-         iconBuilder: iconBuilder,
-         compactAction: compactAction,
-         primaryAction: primaryAction,
-         secondaryAction: secondaryAction,
-         displayDuration: displayDuration,
-         persistent: persistent,
-         textDirection: textDirection,
-       );
+  }) {
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.error,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      glyph: glyph,
+      icon: icon,
+      iconBuilder: iconBuilder,
+      compactAction: compactAction,
+      primaryAction: primaryAction,
+      secondaryAction: secondaryAction,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      textDirection: textDirection,
+    );
+  }
 
   /// Creates loading feedback toast data.
-  const CapsuleToastData.loading({
+  factory CapsuleToastData.loading({
     Object? id,
     required String title,
     String? message,
@@ -183,26 +200,29 @@ class CapsuleToastData with Diagnosticable {
     Duration? displayDuration,
     bool persistent = true,
     TextDirection? textDirection,
-  }) : this._(
-         type: CapsuleToastType.loading,
-         id: id,
-         title: title,
-         message: message,
-         semanticAnnouncement: semanticAnnouncement,
-         initialMode: initialMode,
-         glyph: glyph,
-         icon: icon,
-         iconBuilder: iconBuilder,
-         compactAction: compactAction,
-         primaryAction: primaryAction,
-         secondaryAction: secondaryAction,
-         displayDuration: displayDuration,
-         persistent: persistent,
-         textDirection: textDirection,
-       );
+  }) {
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.loading,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      glyph: glyph,
+      icon: icon,
+      iconBuilder: iconBuilder,
+      compactAction: compactAction,
+      primaryAction: primaryAction,
+      secondaryAction: secondaryAction,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      textDirection: textDirection,
+    );
+  }
 
   /// Creates neutral feedback toast data.
-  const CapsuleToastData.neutral({
+  factory CapsuleToastData.neutral({
     Object? id,
     required String title,
     String? message,
@@ -217,23 +237,26 @@ class CapsuleToastData with Diagnosticable {
     Duration? displayDuration,
     bool persistent = false,
     TextDirection? textDirection,
-  }) : this._(
-         type: CapsuleToastType.neutral,
-         id: id,
-         title: title,
-         message: message,
-         semanticAnnouncement: semanticAnnouncement,
-         initialMode: initialMode,
-         glyph: glyph,
-         icon: icon,
-         iconBuilder: iconBuilder,
-         compactAction: compactAction,
-         primaryAction: primaryAction,
-         secondaryAction: secondaryAction,
-         displayDuration: displayDuration,
-         persistent: persistent,
-         textDirection: textDirection,
-       );
+  }) {
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.neutral,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      glyph: glyph,
+      icon: icon,
+      iconBuilder: iconBuilder,
+      compactAction: compactAction,
+      primaryAction: primaryAction,
+      secondaryAction: secondaryAction,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      textDirection: textDirection,
+    );
+  }
 
   /// Sentinel for [copyWith] when a nullable field should stay unchanged.
   static const Object _unset = Object();
@@ -303,6 +326,11 @@ class CapsuleToastData with Diagnosticable {
     bool? persistent,
     Object? textDirection = _unset,
   }) {
+    final Duration? resolvedDisplayDuration = identical(displayDuration, _unset)
+        ? this.displayDuration
+        : displayDuration as Duration?;
+    final bool resolvedPersistent = persistent ?? this.persistent;
+    _assertDurationRules(resolvedDisplayDuration, resolvedPersistent);
     return CapsuleToastData._(
       type: type ?? this.type,
       id: identical(id, _unset) ? this.id : id,
@@ -326,10 +354,8 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: identical(secondaryAction, _unset)
           ? this.secondaryAction
           : secondaryAction as CapsuleToastAction?,
-      displayDuration: identical(displayDuration, _unset)
-          ? this.displayDuration
-          : displayDuration as Duration?,
-      persistent: persistent ?? this.persistent,
+      displayDuration: resolvedDisplayDuration,
+      persistent: resolvedPersistent,
       textDirection: identical(textDirection, _unset)
           ? this.textDirection
           : textDirection as TextDirection?,
