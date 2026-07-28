@@ -72,7 +72,7 @@ position and velocity. State changes must not dismiss and recreate the overlay.
 lib/
   capsule_toast.dart
   src/
-    controller/
+    manager/
     host/
     model/
     motion/
@@ -84,7 +84,7 @@ lib/
 organized by responsibility rather than gathered into one large implementation
 file.
 
-- `controller/` contains the host-owned manager implementation and queue.
+- `manager/` contains the host-owned manager implementation and queue.
 - `host/` contains the stateful host and private inherited scope.
 - `model/` contains immutable public data, handles, results, and enums.
 - `motion/` contains lifecycle coordination and deterministic spring
@@ -155,6 +155,11 @@ context.capsuleToast.show(
 Nested hosts are supported. `of(context)` resolves the nearest host, so nested
 application shells can own independent queues without global state.
 
+The inherited manager identity remains stable for the host's lifetime. Toast
+animation and queue changes rebuild only the capsule layer; they do not notify
+or rebuild ordinary descendants that merely used `of(context)` to issue a
+command.
+
 ## Public Data Model
 
 `CapsuleToastData` is immutable. It supports brand-neutral factories:
@@ -174,7 +179,7 @@ copy.
 Toast data can define:
 
 - Optional stable identifier.
-- Required title for structured content.
+- A required title when using the structured renderer.
 - Optional supporting message.
 - Optional explicit semantic announcement.
 - Semantic type.
@@ -189,9 +194,16 @@ Toast data can define:
 - Optional expanded content builder.
 - Optional text direction override.
 
+`CapsuleToastData.custom` may omit the visible title only when it provides an
+explicit semantic announcement. This ensures every custom toast remains
+announceable.
+
 Actions are immutable values containing a label, callback, semantic label, and
 whether invoking the action dismisses the toast. Action controls consume their
-own gestures and do not trigger capsule expand, collapse, or drag behavior.
+own gestures and do not trigger capsule expand, collapse, or drag behavior. The
+callback may be synchronous or asynchronous. The dismissal decision is applied
+when the action is invoked rather than waiting for asynchronous work to finish;
+asynchronous failures continue through Flutter's error pipeline.
 
 ## Handle and Completion
 
@@ -230,12 +242,23 @@ One host renders at most one capsule. Additional records use a FIFO queue.
 `CapsuleToastQueuePolicy` supports:
 
 - `enqueue`: append and show after the active toast.
-- `replace`: replace or morph the active toast.
-- `clearAndShow`: clear queued records and replace the active toast.
+- `replace`: complete the old active handle with `replaced`, retain the existing
+  capsule surface, and morph it into the new active record. Existing queued
+  records retain their order.
+- `clearAndShow`: complete queued records with `cleared`, complete the old
+  active handle with `replaced`, and morph the existing surface into the new
+  active record.
 
-The queue depth is configurable on `CapsuleToastHost` and defaults to 20. When
-the queue is full, the oldest queued record is completed with `queueOverflow`.
-The visible record is never removed merely to make queue space.
+`CapsuleToastManager.clear()` completes queued records with `cleared` and starts
+the standard animated exit for the active record. The active handle completes
+with `cleared` after that exit reaches `hidden`.
+
+The queued-record limit is configurable on `CapsuleToastHost` and defaults to
+20; the active record is not counted toward that limit. When the queue is full,
+the oldest queued record is completed with `queueOverflow`. The visible record
+is never removed merely to make queue space.
+
+`queueLength` reports queued records only and does not count the active record.
 
 When one lifecycle finishes, the next queued toast starts after the exit has
 fully completed. The package never overlaps two capsule surfaces.
