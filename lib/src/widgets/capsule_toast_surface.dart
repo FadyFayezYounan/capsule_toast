@@ -70,8 +70,11 @@ class CapsuleToastSurface extends StatelessWidget {
             borderRadius: BorderRadius.circular(
               math.min(clipSize.height / 2, theme.radiusCap!),
             ),
+            // Content stays pinned to the capsule's centre while the capsule
+            // springs around it, so the event is revealed from the inside out
+            // instead of unrolling downward from the top edge.
             child: OverflowBox(
-              alignment: Alignment.topCenter,
+              alignment: Alignment.center,
               minWidth: 0,
               maxWidth: maxWidth,
               minHeight: 0,

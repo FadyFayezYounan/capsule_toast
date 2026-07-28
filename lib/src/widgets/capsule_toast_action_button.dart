@@ -137,7 +137,10 @@ class _CapsuleToastActionButtonState extends State<CapsuleToastActionButton> {
                     ),
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: minHeight),
+                      // Hugs the label: actions are pills sized to their text,
+                      // not full-width bars.
                       child: Center(
+                        widthFactor: 1,
                         child: Text(
                           widget.action.label,
                           style: textStyle,
@@ -175,7 +178,9 @@ class _CapsuleToastActionButtonState extends State<CapsuleToastActionButton> {
       visualDensity: VisualDensity.compact,
     );
 
-    return defaults.merge(widget.style);
+    // The caller's style wins; `defaults` only fills the gaps. `merge` keeps
+    // the receiver's non-null fields, so the override has to be the receiver.
+    return widget.style?.merge(defaults) ?? defaults;
   }
 
   @override

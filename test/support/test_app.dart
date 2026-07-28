@@ -358,7 +358,8 @@ class _GoldenToastBoardState extends State<_GoldenToastBoard>
       capsuleSize:
           clipSize ??
           Size(visualTheme.maximumWidth!, visualTheme.compactMinimumHeight!),
-      capsuleBodyKey: bodyKey,
+      // Specimens are captured fully revealed, where travel has resolved to 0.
+      iconTravel: 0,
       child: KeyedSubtree(key: bodyKey, child: surface),
     );
 

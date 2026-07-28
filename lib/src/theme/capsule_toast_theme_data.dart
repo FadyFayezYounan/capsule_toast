@@ -316,6 +316,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     this.tints,
     this.shadows,
     this.titleTextStyle,
+    this.expandedTitleTextStyle,
     this.messageTextStyle,
     this.actionTextStyle,
     this.glyphBuilder,
@@ -399,6 +400,12 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         fontWeight: FontWeight.w600,
         letterSpacing: -0.15,
       ),
+      expandedTitleTextStyle: const TextStyle(
+        fontSize: 14.5,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+        letterSpacing: -0.2,
+      ),
       messageTextStyle: const TextStyle(
         fontSize: 12.5,
         fontWeight: FontWeight.w500,
@@ -436,6 +443,37 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       secondaryActionPadding: const EdgeInsetsDirectional.symmetric(
         horizontal: 12,
       ),
+      // The compact chip reads as a quiet affordance, the expanded primary as
+      // a solid light pill on the dark capsule, and the secondary as bare text.
+      compactActionStyle: const ButtonStyle(
+        textStyle: WidgetStatePropertyAll<TextStyle>(
+          TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+        ),
+      ),
+      primaryActionStyle: const ButtonStyle(
+        backgroundColor: WidgetStatePropertyAll<Color>(Color(0xFFF9F9F7)),
+        foregroundColor: WidgetStatePropertyAll<Color>(Color(0xFF1A1714)),
+        textStyle: WidgetStatePropertyAll<TextStyle>(
+          TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.1,
+            color: Color(0xFF1A1714),
+          ),
+        ),
+      ),
+      secondaryActionStyle: const ButtonStyle(
+        backgroundColor: WidgetStatePropertyAll<Color>(Color(0x00000000)),
+        foregroundColor: WidgetStatePropertyAll<Color>(Color(0x9EF9F9F7)),
+        textStyle: WidgetStatePropertyAll<TextStyle>(
+          TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            letterSpacing: -0.1,
+            color: Color(0x9EF9F9F7),
+          ),
+        ),
+      ),
       useSafeArea: true,
       verticalOffset: 15,
     );
@@ -470,6 +508,9 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
 
   /// Title typography.
   final TextStyle? titleTextStyle;
+
+  /// Title typography in expanded layout.
+  final TextStyle? expandedTitleTextStyle;
 
   /// Message typography.
   final TextStyle? messageTextStyle;
@@ -571,6 +612,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     CapsuleToastTints? tints,
     List<BoxShadow>? shadows,
     TextStyle? titleTextStyle,
+    TextStyle? expandedTitleTextStyle,
     TextStyle? messageTextStyle,
     TextStyle? actionTextStyle,
     CapsuleToastGlyphBuilder? glyphBuilder,
@@ -613,6 +655,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       tints: tints ?? this.tints,
       shadows: shadows ?? this.shadows,
       titleTextStyle: titleTextStyle ?? this.titleTextStyle,
+      expandedTitleTextStyle:
+          expandedTitleTextStyle ?? this.expandedTitleTextStyle,
       messageTextStyle: messageTextStyle ?? this.messageTextStyle,
       actionTextStyle: actionTextStyle ?? this.actionTextStyle,
       glyphBuilder: glyphBuilder ?? this.glyphBuilder,
@@ -664,6 +708,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       tints: other.tints ?? tints,
       shadows: other.shadows ?? shadows,
       titleTextStyle: other.titleTextStyle ?? titleTextStyle,
+      expandedTitleTextStyle:
+          other.expandedTitleTextStyle ?? expandedTitleTextStyle,
       messageTextStyle: other.messageTextStyle ?? messageTextStyle,
       actionTextStyle: other.actionTextStyle ?? actionTextStyle,
       glyphBuilder: other.glyphBuilder ?? glyphBuilder,
@@ -723,6 +769,11 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       tints: CapsuleToastTints.lerp(tints, other.tints, t),
       shadows: t < 0.5 ? shadows : other.shadows,
       titleTextStyle: TextStyle.lerp(titleTextStyle, other.titleTextStyle, t),
+      expandedTitleTextStyle: TextStyle.lerp(
+        expandedTitleTextStyle,
+        other.expandedTitleTextStyle,
+        t,
+      ),
       messageTextStyle: TextStyle.lerp(
         messageTextStyle,
         other.messageTextStyle,
@@ -830,6 +881,12 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     properties.add(IterableProperty<BoxShadow>('shadows', shadows));
     properties.add(
       DiagnosticsProperty<TextStyle?>('titleTextStyle', titleTextStyle),
+    );
+    properties.add(
+      DiagnosticsProperty<TextStyle?>(
+        'expandedTitleTextStyle',
+        expandedTitleTextStyle,
+      ),
     );
     properties.add(
       DiagnosticsProperty<TextStyle?>('messageTextStyle', messageTextStyle),
@@ -942,6 +999,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         other.tints == tints &&
         _listEquals(other.shadows, shadows) &&
         other.titleTextStyle == titleTextStyle &&
+        other.expandedTitleTextStyle == expandedTitleTextStyle &&
         other.messageTextStyle == messageTextStyle &&
         other.actionTextStyle == actionTextStyle &&
         other.glyphBuilder == glyphBuilder &&
@@ -986,6 +1044,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     tints,
     shadows == null ? null : Object.hashAll(shadows!),
     titleTextStyle,
+    expandedTitleTextStyle,
     messageTextStyle,
     actionTextStyle,
     glyphBuilder,

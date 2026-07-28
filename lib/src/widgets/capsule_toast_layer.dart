@@ -81,7 +81,6 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   final FocusScopeNode _toastFocusScope = FocusScopeNode(
     debugLabel: 'capsule_toast.scope',
   );
-  final GlobalKey _capsuleBodyKey = GlobalKey(debugLabel: 'capsule_toast.body');
 
   CapsuleMotionController get _motion => widget.motion;
 
@@ -408,6 +407,34 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _motion.cancelDrag();
   }
 
+  /// Distance the leading icon travels from the capsule centre to its rest
+  /// position, signed for [textDirection].
+  ///
+  /// Derived from the measured target width for the desired mode so the icon
+  /// tracks where it will come to rest, not where the spring happens to be.
+  double _resolveIconTravel({
+    required CapsuleToastRecord record,
+    required CapsuleToastThemeData visualTheme,
+    required TextDirection textDirection,
+    required Size liveSize,
+  }) {
+    final bool compact = record.desiredMode == CapsuleToastMode.compact;
+    final Size? modeSize = compact ? _compactSize : _expandedSize;
+    final double targetWidth = (modeSize ?? _measuredSize ?? liveSize).width;
+    final EdgeInsets padding =
+        (compact ? visualTheme.compactPadding! : visualTheme.expandedPadding!)
+            .resolve(textDirection);
+    final double startInset = textDirection == TextDirection.rtl
+        ? padding.right
+        : padding.left;
+    final double iconSize = compact
+        ? visualTheme.compactIconSize!
+        : visualTheme.expandedIconSize!;
+    final double iconCenter = startInset + iconSize / 2;
+    final double sign = textDirection == TextDirection.rtl ? -1.0 : 1.0;
+    return (targetWidth / 2 - iconCenter) * sign;
+  }
+
   bool _isReducedMotion(CapsuleToastMotionTheme motionTheme) {
     return switch (motionTheme.reducedMotionPolicy ??
         CapsuleToastReducedMotionPolicy.system) {
@@ -665,38 +692,43 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
               child: interactiveChild,
               builder: (BuildContext context, Widget? child) {
                 final CapsuleMotionSnapshot snapshot = _motion.value;
+                final double iconTravel = _resolveIconTravel(
+                  record: record,
+                  visualTheme: visualTheme,
+                  textDirection: textDirection,
+                  liveSize: snapshot.size,
+                );
                 return Transform.translate(
                   offset: Offset(0, snapshot.verticalOffset),
                   child: Padding(
                     padding: EdgeInsets.only(top: topInset),
-                    child: Opacity(
-                      opacity: snapshot.opacity,
-                      child: Transform.scale(
-                        scale: snapshot.scale,
-                        alignment: Alignment.topCenter,
-                        child: Align(
-                          alignment: Alignment.topCenter,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Opacity(
+                        opacity: snapshot.opacity,
+                        // Scales about the capsule's own centre, matching the
+                        // reference's default transform origin.
+                        child: Transform.scale(
+                          scale: snapshot.scale,
+                          alignment: Alignment.center,
                           child: SizedBox.fromSize(
                             size: snapshot.size,
-                            child: KeyedSubtree(
-                              key: _capsuleBodyKey,
-                              child: CapsuleToastAnimationScope(
-                                contentElapsed: _motion.contentElapsed,
-                                revealing: _motion.contentRevealing,
-                                reducedMotion: reducedMotion,
-                                motionTheme: motionTheme,
-                                textDirection: textDirection,
-                                capsuleSize: snapshot.size,
-                                capsuleBodyKey: _capsuleBodyKey,
-                                child: CapsuleToastSurface(
-                                  theme: visualTheme,
-                                  measureMaxWidth: measureMaxWidth,
-                                  liveSize: snapshot.size,
-                                  semanticsLabel: announcement,
-                                  child: CapsuleToastMeasure(
-                                    onSizeChanged: _handleSizeChanged,
-                                    child: child,
-                                  ),
+                            child: CapsuleToastAnimationScope(
+                              contentElapsed: _motion.contentElapsed,
+                              revealing: _motion.contentRevealing,
+                              reducedMotion: reducedMotion,
+                              motionTheme: motionTheme,
+                              textDirection: textDirection,
+                              capsuleSize: snapshot.size,
+                              iconTravel: iconTravel,
+                              child: CapsuleToastSurface(
+                                theme: visualTheme,
+                                measureMaxWidth: measureMaxWidth,
+                                liveSize: snapshot.size,
+                                semanticsLabel: announcement,
+                                child: CapsuleToastMeasure(
+                                  onSizeChanged: _handleSizeChanged,
+                                  child: child,
                                 ),
                               ),
                             ),

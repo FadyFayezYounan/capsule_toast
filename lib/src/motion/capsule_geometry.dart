@@ -2,13 +2,16 @@
 
 import 'damped_spring.dart';
 
-/// Independent springs for capsule width, height, opacity, and vertical offset.
+/// Independent springs for capsule width, height, and interactive drag offset.
+///
+/// Opacity is not a spring: the reference drives it from the appearance and
+/// exit envelopes directly, so a spring would only add a tail the design does
+/// not have.
 final class CapsuleGeometry {
   /// Creates geometry with the given springs.
   const CapsuleGeometry({
     required this.width,
     required this.height,
-    required this.opacity,
     required this.verticalOffset,
   });
 
@@ -18,17 +21,11 @@ final class CapsuleGeometry {
   /// Spring driving capsule height in logical pixels.
   final DampedSpring height;
 
-  /// Spring driving capsule opacity in `[0, 1]`.
-  final DampedSpring opacity;
-
-  /// Spring driving vertical offset in logical pixels.
+  /// Spring driving the interactive drag offset in logical pixels.
   final DampedSpring verticalOffset;
 
   /// Whether every spring has settled on its target.
   bool get isSettled {
-    return width.isSettled &&
-        height.isSettled &&
-        opacity.isSettled &&
-        verticalOffset.isSettled;
+    return width.isSettled && height.isSettled && verticalOffset.isSettled;
   }
 }

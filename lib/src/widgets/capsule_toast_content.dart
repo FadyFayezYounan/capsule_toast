@@ -201,9 +201,9 @@ class CapsuleToastContent extends StatelessWidget {
       );
     }
 
-    final TextStyle titleStyle = visualTheme.titleTextStyle!.copyWith(
-      color: visualTheme.foregroundColor,
-    );
+    final TextStyle titleStyle =
+        (visualTheme.expandedTitleTextStyle ?? visualTheme.titleTextStyle!)
+            .copyWith(color: visualTheme.foregroundColor);
     final TextStyle messageStyle = visualTheme.messageTextStyle!.copyWith(
       color: visualTheme.secondaryForegroundColor,
     );

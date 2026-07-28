@@ -1,10 +1,13 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
+import 'dart:math' as math;
+
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../model/capsule_toast_types.dart';
 import '../theme/capsule_toast_motion_theme.dart';
+import 'capsule_easing.dart';
 import 'capsule_geometry.dart';
 import 'capsule_lifecycle.dart';
 import 'damped_spring.dart';
@@ -57,8 +60,7 @@ final class CapsuleMotionController extends ChangeNotifier {
   }) : _geometry = CapsuleGeometry(
          width: DampedSpring(value: _seedWidth),
          height: DampedSpring(value: _seedHeight),
-         opacity: DampedSpring(value: 0),
-         verticalOffset: DampedSpring(value: _seedVerticalOffset),
+         verticalOffset: DampedSpring(value: 0),
        );
 
   static const double _seedWidth = 84;
@@ -70,6 +72,8 @@ final class CapsuleMotionController extends ChangeNotifier {
   static const double _exitSizeAtMs = 160;
   static const double _exitFadeDurationMs = 140;
   static const double _exitUpwardTravel = 6;
+  static const double _exitVelocityKickScale = 0.03;
+  static const double _exitVelocityKickCap = 40;
 
   final TickerProvider _vsync;
   final VoidCallback _onHoldElapsed;
@@ -112,7 +116,11 @@ final class CapsuleMotionController extends ChangeNotifier {
       state: _lifecycle.state,
       size: Size(_geometry.width.value, _geometry.height.value),
       opacity: _envelopeOpacity.clamp(0.0, 1.0),
-      verticalOffset: _envelopeOffset,
+      // The lifecycle envelope and the interactive drag translate the capsule
+      // independently, exactly as the reference composes `ty + drag`. Keeping
+      // them separate is what lets an exit begin from wherever the finger left
+      // the capsule instead of snapping back to rest first.
+      verticalOffset: _envelopeOffset + _geometry.verticalOffset.value,
       scale: _scale,
       contentProgress: _contentProgress.clamp(0.0, 1.0),
       isSettled: _isVisiblySettled,
@@ -284,7 +292,6 @@ final class CapsuleMotionController extends ChangeNotifier {
       beginDrag();
     }
     _geometry.verticalOffset.jumpTo(offset);
-    _envelopeOffset = offset;
     _publish();
   }
 
@@ -322,9 +329,20 @@ final class CapsuleMotionController extends ChangeNotifier {
     _holdClock.reset();
     _holdStarted = false;
     _contentEnvelopeActive = true;
-    if (velocity != 0) {
-      _geometry.verticalOffset.velocity = -velocity.abs();
-    }
+    // Retune to the exit spring now, but retarget to the seed only once the
+    // content has begun retracting (see [_advanceExit]). Between those two
+    // moments the capsule keeps its current target and simply stops bouncing.
+    _usingExitSpring = true;
+    _usingInteractiveSpring = false;
+    // A flick carries the capsule further along its own travel and then holds
+    // there for the fade, rather than springing back to rest.
+    final double kick = velocity == 0
+        ? 0
+        : -math.min(
+            _exitVelocityKickCap,
+            velocity.abs() * _exitVelocityKickScale,
+          );
+    _geometry.verticalOffset.jumpTo(_geometry.verticalOffset.value + kick);
     _ensureTicker();
     _publish();
   }
@@ -362,7 +380,6 @@ final class CapsuleMotionController extends ChangeNotifier {
       _scale = 1;
       if (!_appearanceComplete) {
         _envelopeOffset = 0;
-        _geometry.verticalOffset.jumpTo(0);
       }
     }
   }
@@ -419,15 +436,14 @@ final class CapsuleMotionController extends ChangeNotifier {
   void _jumpToSeed() {
     _geometry.width.jumpTo(_seedWidth);
     _geometry.height.jumpTo(_seedHeight);
-    _geometry.opacity.jumpTo(0);
+    // The drag spring always starts at rest; only the envelope carries the
+    // seed's upward offset.
+    _geometry.verticalOffset.jumpTo(0);
+    _envelopeOpacity = 0;
     if (_reducedMotion) {
-      _geometry.verticalOffset.jumpTo(0);
-      _envelopeOpacity = 0;
       _envelopeOffset = 0;
       _scale = 1;
     } else {
-      _geometry.verticalOffset.jumpTo(_seedVerticalOffset);
-      _envelopeOpacity = 0;
       _envelopeOffset = _seedVerticalOffset;
       _scale = _seedScale;
     }
@@ -449,8 +465,8 @@ final class CapsuleMotionController extends ChangeNotifier {
     _envelopeOpacity = 1;
     _envelopeOffset = 0;
     _scale = 1;
-    _geometry.opacity.jumpTo(1);
-    _geometry.verticalOffset.jumpTo(0);
+    // Deliberately leaves the drag spring alone — a capsule dismissed straight
+    // out of seed may already be under the finger.
     if (_pendingHeightTarget != null) {
       _geometry.height.retarget(_pendingHeightTarget!.height);
       _pendingHeightTarget = null;
@@ -537,8 +553,10 @@ final class CapsuleMotionController extends ChangeNotifier {
     final double t =
         (_appearanceElapsed.inMicroseconds / appearanceDuration.inMicroseconds)
             .clamp(0.0, 1.0);
-    final double curved = Curves.easeOut.transform(t);
-    _envelopeOpacity = curved;
+    final double curved = capsuleEaseOut.transform(t);
+    // The entrance fade only ever brightens, matching the reference's
+    // `op = max(op, inP)` guard.
+    _envelopeOpacity = math.max(_envelopeOpacity, curved);
     if (_reducedMotion) {
       _envelopeOffset = 0;
       _scale = 1;
@@ -547,15 +565,11 @@ final class CapsuleMotionController extends ChangeNotifier {
           _seedVerticalOffset + (0 - _seedVerticalOffset) * curved;
       _scale = _seedScale + (1 - _seedScale) * curved;
     }
-    _geometry.opacity.jumpTo(_envelopeOpacity);
-    _geometry.verticalOffset.jumpTo(_envelopeOffset);
     if (t >= 1) {
       _appearanceComplete = true;
       _envelopeOpacity = 1;
       _envelopeOffset = 0;
       _scale = 1;
-      _geometry.opacity.jumpTo(1);
-      _geometry.verticalOffset.jumpTo(0);
     }
   }
 
@@ -582,12 +596,11 @@ final class CapsuleMotionController extends ChangeNotifier {
     final CapsuleToastSpring heightSpring = _springForHeight;
     _geometry.width.advance(elapsed, widthSpring);
     _geometry.height.advance(elapsed, heightSpring);
+    // The drag spring only settles back to rest outside the exit — during a
+    // collapse it stays frozen wherever the gesture (and its flick) left it.
     if (_appearanceComplete &&
         _lifecycle.state != CapsuleLifecycleState.collapsing) {
-      _geometry.opacity.advance(elapsed, widthSpring);
       _geometry.verticalOffset.advance(elapsed, heightSpring);
-      _envelopeOpacity = _geometry.opacity.value;
-      _envelopeOffset = _geometry.verticalOffset.value;
     }
   }
 
@@ -725,8 +738,6 @@ final class CapsuleMotionController extends ChangeNotifier {
 
     if (!_exitSizeRetargeted && exitMs >= _exitSizeAtMs) {
       _exitSizeRetargeted = true;
-      _usingExitSpring = true;
-      _usingInteractiveSpring = false;
       _geometry.width.retarget(_seedWidth);
       _geometry.height.retarget(_seedHeight);
     }
@@ -740,12 +751,11 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (_exitFadeStarted) {
       final double fadeT = ((exitMs - _exitFadeStartMs) / _exitFadeDurationMs)
           .clamp(0.0, 1.0);
-      final double curved = Curves.easeOut.transform(fadeT);
+      final double curved = capsuleEaseOut.transform(fadeT);
       _envelopeOpacity = 1 - curved;
+      // Composes on top of the frozen drag offset rather than replacing it, so
+      // a flicked capsule keeps travelling from where it was released.
       _envelopeOffset = _reducedMotion ? 0 : -_exitUpwardTravel * curved;
-      _scale = 1;
-      _geometry.opacity.jumpTo(_envelopeOpacity);
-      _geometry.verticalOffset.jumpTo(_envelopeOffset);
     }
 
     if (!_exitCompleted && exitMs >= _exitCompleteMs) {
