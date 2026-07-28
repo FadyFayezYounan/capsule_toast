@@ -48,17 +48,13 @@ final class CapsuleMotionSnapshot {
 
 /// Ticker-owned spring and envelope engine for one continuous capsule.
 final class CapsuleMotionController extends ChangeNotifier {
-  /// Creates a controller driven by [vsync] using [motionTheme].
+  /// Creates a controller driven by the given ticker provider and motion theme.
   CapsuleMotionController({
-    required TickerProvider vsync,
-    required CapsuleToastMotionTheme motionTheme,
-    required VoidCallback onHoldElapsed,
-    required VoidCallback onExitCompleted,
-  }) : _vsync = vsync,
-       _motionTheme = motionTheme,
-       _onHoldElapsed = onHoldElapsed,
-       _onExitCompleted = onExitCompleted,
-       _geometry = CapsuleGeometry(
+    required this._vsync,
+    required this._motionTheme,
+    required this._onHoldElapsed,
+    required this._onExitCompleted,
+  }) : _geometry = CapsuleGeometry(
          width: DampedSpring(value: _seedWidth),
          height: DampedSpring(value: _seedHeight),
          opacity: DampedSpring(value: 0),

@@ -16,7 +16,7 @@ typedef CapsuleToastContentBuilder =
 
 /// Context passed to custom capsule toast content builders.
 @immutable
-class CapsuleToastContentContext {
+class CapsuleToastContentContext with Diagnosticable {
   /// Creates content builder context for a live toast.
   const CapsuleToastContentContext({
     required this.toast,
@@ -48,6 +48,27 @@ class CapsuleToastContentContext {
 
   /// Layout constraints for custom content.
   final BoxConstraints constraints;
+
+  /// Adds diagnostic properties for this content context.
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<CapsuleToastData>('toast', toast));
+    properties.add(EnumProperty<CapsuleToastMode>('mode', mode));
+    properties.add(
+      DiagnosticsProperty<CapsuleToastThemeData>('visualTheme', visualTheme),
+    );
+    properties.add(
+      DiagnosticsProperty<CapsuleToastMotionTheme>('motionTheme', motionTheme),
+    );
+    properties.add(
+      DiagnosticsProperty<CapsuleToastManager>('manager', manager),
+    );
+    properties.add(DiagnosticsProperty<CapsuleToastHandle>('handle', handle));
+    properties.add(
+      DiagnosticsProperty<BoxConstraints>('constraints', constraints),
+    );
+  }
 }
 
 /// Immutable configuration for a structured capsule toast.
@@ -165,6 +186,10 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: secondaryAction,
       displayDuration: displayDuration,
       persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
       textDirection: textDirection,
     );
   }
@@ -207,6 +232,10 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: secondaryAction,
       displayDuration: displayDuration,
       persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
       textDirection: textDirection,
     );
   }

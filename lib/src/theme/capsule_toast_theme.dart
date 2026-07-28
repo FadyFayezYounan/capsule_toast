@@ -1,5 +1,6 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'capsule_toast_motion_theme.dart';
@@ -23,7 +24,7 @@ class CapsuleToastTheme extends InheritedTheme {
 
   /// Returns the nearest [CapsuleToastThemeData], or throws if none exists.
   static CapsuleToastThemeData of(BuildContext context) {
-    final CapsuleToastTheme? theme = maybeOfWidget(context);
+    final CapsuleToastTheme? theme = _maybeOfWidget(context);
     assert(
       theme != null,
       'CapsuleToastTheme.of() called with a context that does not contain a '
@@ -34,7 +35,7 @@ class CapsuleToastTheme extends InheritedTheme {
 
   /// Returns the nearest inherited visual theme, or `null` when absent.
   static CapsuleToastThemeData? maybeOf(BuildContext context) {
-    return maybeOfWidget(context)?.data;
+    return _maybeOfWidget(context)?.data;
   }
 
   /// Resolves visual theme from defaults, extensions, and inherited scope.
@@ -62,7 +63,7 @@ class CapsuleToastTheme extends InheritedTheme {
     if (extension != null) {
       resolved = resolved.merge(extension);
     }
-    final CapsuleToastMotionTheme? inherited = maybeOfWidget(
+    final CapsuleToastMotionTheme? inherited = _maybeOfWidget(
       context,
     )?.motionTheme;
     if (inherited != null) {
@@ -71,7 +72,7 @@ class CapsuleToastTheme extends InheritedTheme {
     return resolved;
   }
 
-  static CapsuleToastTheme? maybeOfWidget(BuildContext context) {
+  static CapsuleToastTheme? _maybeOfWidget(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<CapsuleToastTheme>();
   }
 
@@ -88,6 +89,15 @@ class CapsuleToastTheme extends InheritedTheme {
       data: data,
       motionTheme: motionTheme,
       child: child,
+    );
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties.add(DiagnosticsProperty<CapsuleToastThemeData>('data', data));
+    properties.add(
+      DiagnosticsProperty<CapsuleToastMotionTheme?>('motionTheme', motionTheme),
     );
   }
 }
