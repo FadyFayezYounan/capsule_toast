@@ -143,14 +143,9 @@ final handle = CapsuleToastHost.of(context).show(
 ```
 
 `CapsuleToastHost.of` returns the narrow manager interface, not widget state.
-`CapsuleToastHost.maybeOf` returns `null` when no host exists. An optional
-`BuildContext` extension may delegate to the same inherited lookup:
-
-```dart
-context.capsuleToast.show(
-  CapsuleToastData.success(title: 'Saved'),
-);
-```
+`CapsuleToastHost.maybeOf` returns `null` when no host exists. The package does
+not add a `BuildContext` extension; host lookup remains explicit at each call
+site.
 
 Nested hosts are supported. `of(context)` resolves the nearest host, so nested
 application shells can own independent queues without global state.
