@@ -4,8 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../manager/capsule_toast_coordinator.dart';
+import '../manager/capsule_toast_record.dart';
+import '../theme/capsule_toast_motion_theme.dart';
+import '../theme/capsule_toast_theme.dart';
+import '../theme/capsule_toast_theme_data.dart';
+import 'capsule_toast_content.dart';
+import 'capsule_toast_measure.dart';
+import 'capsule_toast_surface.dart';
 
-/// Temporary toast overlay replaced by the production renderer in later tasks.
+/// Overlay that renders the active capsule toast for [coordinator].
 class CapsuleToastLayer extends StatefulWidget {
   /// Creates a layer that paints the active toast for [coordinator].
   const CapsuleToastLayer({
@@ -34,6 +41,10 @@ class CapsuleToastLayer extends StatefulWidget {
 }
 
 class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
+  Size? _liveSize;
+  int? _activeToken;
+  int _activeRevision = -1;
+
   @override
   void initState() {
     super.initState();
@@ -59,17 +70,69 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     setState(() {});
   }
 
+  void _handleSizeChanged(Size size) {
+    if (_liveSize == size) {
+      return;
+    }
+    setState(() => _liveSize = size);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final String? title = widget.coordinator.active?.data.title;
-    if (title == null) {
+    final CapsuleToastRecord? record = widget.coordinator.active;
+    if (record == null) {
       return const SizedBox.shrink();
     }
-    return Align(
-      alignment: Alignment.topCenter,
-      child: SizedBox(
-        key: const ValueKey<String>('capsule_toast.layer'),
-        child: Text(title),
+
+    if (_activeToken != record.token || _activeRevision != record.revision) {
+      _activeToken = record.token;
+      _activeRevision = record.revision;
+      _liveSize = null;
+    }
+
+    final ThemeData appTheme = Theme.of(context);
+    CapsuleToastTheme.maybeOfWidget(context);
+
+    CapsuleToastThemeData visualTheme = CapsuleToastTheme.resolve(
+      context,
+    ).merge(record.data.theme);
+    CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
+      context,
+    ).merge(record.data.motionTheme);
+
+    final double topInset = visualTheme.useSafeArea!
+        ? MediaQuery.viewPaddingOf(context).top + visualTheme.verticalOffset!
+        : visualTheme.verticalOffset!;
+
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Padding(
+        padding: EdgeInsetsDirectional.only(
+          start: visualTheme.horizontalInset!,
+          end: visualTheme.horizontalInset!,
+          top: topInset,
+        ),
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: CapsuleToastMeasure(
+            onSizeChanged: _handleSizeChanged,
+            child: CapsuleToastSurface(
+              theme: visualTheme,
+              child: DefaultTextStyle.merge(
+                style: appTheme.textTheme.bodyMedium,
+                child: CapsuleToastContent(
+                  record: record,
+                  coordinator: widget.coordinator,
+                  visualTheme: visualTheme,
+                  motionTheme: motionTheme,
+                  vsync: widget.vsync,
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

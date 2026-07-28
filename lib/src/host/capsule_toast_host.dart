@@ -104,6 +104,7 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
       manager: _coordinator,
       child: Stack(
         fit: StackFit.expand,
+        clipBehavior: Clip.none,
         children: <Widget>[
           widget.child,
           CapsuleToastLayer(coordinator: _coordinator, vsync: this),
