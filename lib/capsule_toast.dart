@@ -13,3 +13,5 @@ export 'src/model/capsule_toast_types.dart';
 export 'src/theme/capsule_toast_motion_theme.dart';
 export 'src/theme/capsule_toast_theme.dart';
 export 'src/theme/capsule_toast_theme_data.dart';
+export 'src/widgets/capsule_toast_animated_slot.dart'
+    show CapsuleToastAnimatedSlot;

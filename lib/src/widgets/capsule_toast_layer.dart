@@ -20,6 +20,7 @@ import '../theme/capsule_toast_theme_data.dart';
 import 'capsule_toast_content.dart';
 import 'capsule_toast_measure.dart';
 import 'capsule_toast_surface.dart';
+import 'capsule_toast_animated_slot.dart';
 
 /// Overlay that renders the active capsule toast for [coordinator].
 class CapsuleToastLayer extends StatefulWidget {
@@ -80,6 +81,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   final FocusScopeNode _toastFocusScope = FocusScopeNode(
     debugLabel: 'capsule_toast.scope',
   );
+  final GlobalKey _capsuleBodyKey = GlobalKey(debugLabel: 'capsule_toast.body');
 
   CapsuleMotionController get _motion => widget.motion;
 
@@ -191,6 +193,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       context,
     ).merge(record.data.motionTheme);
     _motion.updateMotionTheme(motionTheme);
+    _motion.setReducedMotion(_isReducedMotion(motionTheme));
 
     final Size seed = visualTheme.seedSize ?? const Size(84, 34);
     final Size target = _measuredSize ?? seed;
@@ -613,10 +616,16 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
       context,
     ).merge(record.data.motionTheme);
+    final bool reducedMotion = _isReducedMotion(motionTheme);
+    _motion.setReducedMotion(reducedMotion);
 
     final double topInset = visualTheme.useSafeArea!
         ? MediaQuery.viewPaddingOf(context).top + visualTheme.verticalOffset!
         : visualTheme.verticalOffset!;
+
+    final TextDirection textDirection =
+        record.data.textDirection ?? Directionality.of(context);
+    final String announcement = composeCapsuleToastAnnouncement(record.data);
 
     // Keep gesture detectors outside AnimatedBuilder so recognizers are not
     // recreated on every spring tick.
@@ -669,13 +678,26 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
                           alignment: Alignment.topCenter,
                           child: SizedBox.fromSize(
                             size: snapshot.size,
-                            child: CapsuleToastSurface(
-                              theme: visualTheme,
-                              measureMaxWidth: measureMaxWidth,
-                              liveSize: snapshot.size,
-                              child: CapsuleToastMeasure(
-                                onSizeChanged: _handleSizeChanged,
-                                child: child,
+                            child: KeyedSubtree(
+                              key: _capsuleBodyKey,
+                              child: CapsuleToastAnimationScope(
+                                contentElapsed: _motion.contentElapsed,
+                                revealing: _motion.contentRevealing,
+                                reducedMotion: reducedMotion,
+                                motionTheme: motionTheme,
+                                textDirection: textDirection,
+                                capsuleSize: snapshot.size,
+                                capsuleBodyKey: _capsuleBodyKey,
+                                child: CapsuleToastSurface(
+                                  theme: visualTheme,
+                                  measureMaxWidth: measureMaxWidth,
+                                  liveSize: snapshot.size,
+                                  semanticsLabel: announcement,
+                                  child: CapsuleToastMeasure(
+                                    onSizeChanged: _handleSizeChanged,
+                                    child: child,
+                                  ),
+                                ),
                               ),
                             ),
                           ),

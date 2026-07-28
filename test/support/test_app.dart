@@ -57,26 +57,26 @@ Future<BuildContext> pumpToast(
 }) async {
   late BuildContext commandContext;
   await tester.pumpWidget(
-    MediaQuery(
-      data: MediaQueryData(
-        viewPadding: viewPadding,
-        padding: viewPadding,
-        textScaler: textScaler,
-        disableAnimations: disableAnimations,
-      ),
-      child: MaterialApp(
-        builder: (BuildContext context, Widget? child) {
-          return CapsuleToastHost(child: child!);
-        },
-        home: Directionality(
-          textDirection: textDirection,
-          child: Builder(
-            builder: (BuildContext context) {
-              commandContext = context;
-              return const SizedBox();
-            },
+    MaterialApp(
+      builder: (BuildContext context, Widget? child) {
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            viewPadding: viewPadding,
+            padding: viewPadding,
+            textScaler: textScaler,
+            disableAnimations: disableAnimations,
           ),
-        ),
+          child: Directionality(
+            textDirection: textDirection,
+            child: CapsuleToastHost(child: child!),
+          ),
+        );
+      },
+      home: Builder(
+        builder: (BuildContext context) {
+          commandContext = context;
+          return const SizedBox();
+        },
       ),
     ),
   );
@@ -101,12 +101,16 @@ Future<ToastTestHarness> pumpToastHarness(
   CapsuleToastData toast, {
   bool settle = true,
   bool disableAnimations = false,
+  TextDirection textDirection = TextDirection.ltr,
+  TextScaler textScaler = TextScaler.noScaling,
 }) async {
   final BuildContext context = await pumpToast(
     tester,
     toast,
     settle: settle,
     disableAnimations: disableAnimations,
+    textDirection: textDirection,
+    textScaler: textScaler,
   );
   final CapsuleToastManager manager = CapsuleToastHost.of(context);
   final CapsuleToastLayer layer = tester.widget(find.byType(CapsuleToastLayer));

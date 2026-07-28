@@ -20,6 +20,7 @@ class CapsuleToastSurface extends StatelessWidget {
     required this.child,
     this.measureMaxWidth,
     this.liveSize,
+    this.semanticsLabel,
   });
 
   /// Fully resolved visual theme for this surface.
@@ -33,6 +34,9 @@ class CapsuleToastSurface extends StatelessWidget {
 
   /// Live spring-driven size used for clipping and corner radius.
   final Size? liveSize;
+
+  /// Live-region announcement for the active toast.
+  final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -53,21 +57,16 @@ class CapsuleToastSurface extends StatelessWidget {
           child: child,
         );
 
+        final Widget surface;
         if (clipSize == null ||
             !constraints.hasTightWidth ||
             !constraints.hasTightHeight) {
-          return RepaintBoundary(
-            key: capsuleSurfaceKey,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: maxWidth),
-              child: body,
-            ),
+          surface = ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: body,
           );
-        }
-
-        return RepaintBoundary(
-          key: capsuleSurfaceKey,
-          child: ClipRRect(
+        } else {
+          surface = ClipRRect(
             borderRadius: BorderRadius.circular(
               math.min(clipSize.height / 2, theme.radiusCap!),
             ),
@@ -79,7 +78,16 @@ class CapsuleToastSurface extends StatelessWidget {
               maxHeight: double.infinity,
               child: body,
             ),
-          ),
+          );
+        }
+
+        return Semantics(
+          key: capsuleSurfaceKey,
+          container: true,
+          liveRegion: true,
+          label: semanticsLabel,
+          explicitChildNodes: true,
+          child: RepaintBoundary(child: surface),
         );
       },
     );
@@ -91,6 +99,7 @@ class CapsuleToastSurface extends StatelessWidget {
     properties.add(DiagnosticsProperty<CapsuleToastThemeData>('theme', theme));
     properties.add(DoubleProperty('measureMaxWidth', measureMaxWidth));
     properties.add(DiagnosticsProperty<Size?>('liveSize', liveSize));
+    properties.add(StringProperty('semanticsLabel', semanticsLabel));
   }
 }
 

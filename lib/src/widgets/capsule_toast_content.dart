@@ -10,7 +10,29 @@ import '../model/capsule_toast_types.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 import '../theme/capsule_toast_theme_data.dart';
 import 'capsule_toast_action_button.dart';
+import 'capsule_toast_animated_slot.dart';
 import 'capsule_toast_glyph.dart';
+
+/// Composes the default live-region announcement for [toast].
+String composeCapsuleToastAnnouncement(CapsuleToastData toast) {
+  if (toast.semanticAnnouncement case final String announcement) {
+    return announcement;
+  }
+  final String prefix = switch (toast.type) {
+    CapsuleToastType.success => 'Success.',
+    CapsuleToastType.information => 'Information.',
+    CapsuleToastType.warning => 'Warning.',
+    CapsuleToastType.error => 'Error.',
+    CapsuleToastType.loading => 'Loading.',
+    CapsuleToastType.neutral => 'Notice.',
+    CapsuleToastType.custom => 'Notice.',
+  };
+  return <String>[
+    prefix,
+    if (toast.title case final String title) title,
+    if (toast.message case final String message) message,
+  ].join(' ');
+}
 
 /// Structured capsule toast content for compact and expanded layouts.
 class CapsuleToastContent extends StatelessWidget {
@@ -42,19 +64,35 @@ class CapsuleToastContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final CapsuleToastData data = record.data;
-    final CapsuleToastMode mode = record.desiredMode;
-    final TextDirection? direction = data.textDirection;
-    final Widget content = switch (mode) {
-      CapsuleToastMode.compact => _buildCompact(context, data),
-      CapsuleToastMode.expanded => _buildExpanded(context, data),
-    };
-    if (direction == null) {
-      return content;
-    }
-    return Directionality(textDirection: direction, child: content);
+    final TextDirection direction =
+        data.textDirection ?? Directionality.of(context);
+    return Directionality(
+      textDirection: direction,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final CapsuleToastMode mode = record.desiredMode;
+          return switch (mode) {
+            CapsuleToastMode.compact => _buildCompact(
+              context,
+              data,
+              constraints,
+            ),
+            CapsuleToastMode.expanded => _buildExpanded(
+              context,
+              data,
+              constraints,
+            ),
+          };
+        },
+      ),
+    );
   }
 
-  Widget _buildCompact(BuildContext context, CapsuleToastData data) {
+  Widget _buildCompact(
+    BuildContext context,
+    CapsuleToastData data,
+    BoxConstraints constraints,
+  ) {
     if (data.compactBuilder != null) {
       return data.compactBuilder!(
         context,
@@ -65,7 +103,7 @@ class CapsuleToastContent extends StatelessWidget {
           motionTheme: motionTheme,
           manager: coordinator,
           handle: record.handle,
-          constraints: const BoxConstraints(),
+          constraints: constraints,
         ),
       );
     }
@@ -84,32 +122,43 @@ class CapsuleToastContent extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            _buildLeadingIcon(data),
+            CapsuleToastAnimatedSlot(
+              slot: CapsuleToastSlot.icon,
+              child: _buildLeadingIcon(data),
+            ),
             SizedBox(width: visualTheme.compactSpacing),
             Flexible(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: visualTheme.compactTitleMaximumWidth!,
-                ),
-                child: Text(
-                  data.title ?? '',
-                  style: titleStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              child: CapsuleToastAnimatedSlot(
+                slot: CapsuleToastSlot.title,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: visualTheme.compactTitleMaximumWidth!,
+                  ),
+                  child: ExcludeSemantics(
+                    child: Text(
+                      data.title ?? '',
+                      style: titleStyle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
               ),
             ),
             if (data.compactAction != null) ...<Widget>[
               SizedBox(width: visualTheme.compactSpacing),
-              CapsuleToastActionButton(
-                action: data.compactAction!,
-                coordinator: coordinator,
-                token: record.token,
-                theme: visualTheme,
-                height: visualTheme.compactActionHeight!,
-                padding: visualTheme.compactActionPadding!,
-                style: visualTheme.compactActionStyle,
-                compact: true,
+              CapsuleToastAnimatedSlot(
+                slot: CapsuleToastSlot.action,
+                child: CapsuleToastActionButton(
+                  action: data.compactAction!,
+                  coordinator: coordinator,
+                  token: record.token,
+                  theme: visualTheme,
+                  height: visualTheme.compactActionHeight!,
+                  padding: visualTheme.compactActionPadding!,
+                  style: visualTheme.compactActionStyle,
+                  compact: true,
+                ),
               ),
             ],
           ],
@@ -118,7 +167,11 @@ class CapsuleToastContent extends StatelessWidget {
     );
   }
 
-  Widget _buildExpanded(BuildContext context, CapsuleToastData data) {
+  Widget _buildExpanded(
+    BuildContext context,
+    CapsuleToastData data,
+    BoxConstraints constraints,
+  ) {
     if (data.expandedBuilder != null) {
       return data.expandedBuilder!(
         context,
@@ -129,7 +182,21 @@ class CapsuleToastContent extends StatelessWidget {
           motionTheme: motionTheme,
           manager: coordinator,
           handle: record.handle,
-          constraints: const BoxConstraints(),
+          constraints: constraints,
+        ),
+      );
+    }
+    if (data.compactBuilder != null) {
+      return data.compactBuilder!(
+        context,
+        CapsuleToastContentContext(
+          toast: data,
+          mode: CapsuleToastMode.expanded,
+          visualTheme: visualTheme,
+          motionTheme: motionTheme,
+          manager: coordinator,
+          handle: record.handle,
+          constraints: constraints,
         ),
       );
     }
@@ -147,46 +214,63 @@ class CapsuleToastContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          _buildLeadingIcon(data),
+          CapsuleToastAnimatedSlot(
+            slot: CapsuleToastSlot.icon,
+            child: _buildLeadingIcon(data),
+          ),
           SizedBox(width: visualTheme.expandedSpacing),
           Flexible(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                if (data.title != null) Text(data.title!, style: titleStyle),
+                if (data.title != null)
+                  CapsuleToastAnimatedSlot(
+                    slot: CapsuleToastSlot.title,
+                    child: ExcludeSemantics(
+                      child: Text(data.title!, style: titleStyle),
+                    ),
+                  ),
                 if (data.message != null) ...<Widget>[
                   SizedBox(height: visualTheme.messageSpacing),
-                  Text(data.message!, style: messageStyle),
+                  CapsuleToastAnimatedSlot(
+                    slot: CapsuleToastSlot.message,
+                    child: ExcludeSemantics(
+                      child: Text(data.message!, style: messageStyle),
+                    ),
+                  ),
                 ],
                 if (data.primaryAction != null ||
                     data.secondaryAction != null) ...<Widget>[
                   SizedBox(height: visualTheme.actionTopSpacing),
-                  Wrap(
-                    spacing: visualTheme.actionSpacing!,
-                    runSpacing: visualTheme.actionSpacing!,
-                    children: <Widget>[
-                      if (data.primaryAction != null)
-                        CapsuleToastActionButton(
-                          action: data.primaryAction!,
-                          coordinator: coordinator,
-                          token: record.token,
-                          theme: visualTheme,
-                          height: visualTheme.expandedActionHeight!,
-                          padding: visualTheme.primaryActionPadding!,
-                          style: visualTheme.primaryActionStyle,
-                        ),
-                      if (data.secondaryAction != null)
-                        CapsuleToastActionButton(
-                          action: data.secondaryAction!,
-                          coordinator: coordinator,
-                          token: record.token,
-                          theme: visualTheme,
-                          height: visualTheme.expandedActionHeight!,
-                          padding: visualTheme.secondaryActionPadding!,
-                          style: visualTheme.secondaryActionStyle,
-                        ),
-                    ],
+                  CapsuleToastAnimatedSlot(
+                    slot: CapsuleToastSlot.action,
+                    child: Wrap(
+                      spacing: visualTheme.actionSpacing!,
+                      runSpacing: visualTheme.actionSpacing!,
+                      children: <Widget>[
+                        if (data.primaryAction != null)
+                          CapsuleToastActionButton(
+                            action: data.primaryAction!,
+                            coordinator: coordinator,
+                            token: record.token,
+                            theme: visualTheme,
+                            height: visualTheme.expandedActionHeight!,
+                            padding: visualTheme.primaryActionPadding!,
+                            style: visualTheme.primaryActionStyle,
+                          ),
+                        if (data.secondaryAction != null)
+                          CapsuleToastActionButton(
+                            action: data.secondaryAction!,
+                            coordinator: coordinator,
+                            token: record.token,
+                            theme: visualTheme,
+                            height: visualTheme.expandedActionHeight!,
+                            padding: visualTheme.secondaryActionPadding!,
+                            style: visualTheme.secondaryActionStyle,
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ],
@@ -263,12 +347,14 @@ class _CapsuleToastLeadingIcon extends StatelessWidget {
       );
     }
 
-    return Container(
-      width: iconSize,
-      height: iconSize,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
-      child: icon,
+    return ExcludeSemantics(
+      child: Container(
+        width: iconSize,
+        height: iconSize,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: tint, shape: BoxShape.circle),
+        child: icon,
+      ),
     );
   }
 }

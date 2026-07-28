@@ -102,6 +102,7 @@ final class CapsuleMotionController extends ChangeNotifier {
   bool _usingExitSpring = false;
   bool _usingInteractiveSpring = false;
   bool _pendingExpandAfterAppear = false;
+  bool _reducedMotion = false;
   Duration? _holdDuration;
   double _scale = 1;
   double _envelopeOpacity = 0;
@@ -354,6 +355,33 @@ final class CapsuleMotionController extends ChangeNotifier {
     _motionTheme = value;
   }
 
+  /// Enables or disables the reduced-motion presentation policy.
+  void setReducedMotion(bool value) {
+    if (_reducedMotion == value) {
+      return;
+    }
+    _reducedMotion = value;
+    if (_reducedMotion) {
+      _contentTravel = Offset.zero;
+      _scale = 1;
+      if (!_appearanceComplete) {
+        _envelopeOffset = 0;
+        _geometry.verticalOffset.jumpTo(0);
+      }
+    }
+  }
+
+  /// Elapsed time within the active content reveal or retract envelope.
+  Duration get contentElapsed => _contentElapsed;
+
+  /// Whether the content envelope is currently revealing (versus exiting).
+  bool get contentRevealing {
+    return _lifecycle.state != CapsuleLifecycleState.collapsing;
+  }
+
+  /// Whether reduced motion is currently active for this controller.
+  bool get reducedMotion => _reducedMotion;
+
   @override
   void dispose() {
     _ticker?.dispose();
@@ -396,10 +424,17 @@ final class CapsuleMotionController extends ChangeNotifier {
     _geometry.width.jumpTo(_seedWidth);
     _geometry.height.jumpTo(_seedHeight);
     _geometry.opacity.jumpTo(0);
-    _geometry.verticalOffset.jumpTo(_seedVerticalOffset);
-    _envelopeOpacity = 0;
-    _envelopeOffset = _seedVerticalOffset;
-    _scale = _seedScale;
+    if (_reducedMotion) {
+      _geometry.verticalOffset.jumpTo(0);
+      _envelopeOpacity = 0;
+      _envelopeOffset = 0;
+      _scale = 1;
+    } else {
+      _geometry.verticalOffset.jumpTo(_seedVerticalOffset);
+      _envelopeOpacity = 0;
+      _envelopeOffset = _seedVerticalOffset;
+      _scale = _seedScale;
+    }
     _contentProgress = 0;
     _contentTravel = Offset.zero;
   }
@@ -508,8 +543,14 @@ final class CapsuleMotionController extends ChangeNotifier {
             .clamp(0.0, 1.0);
     final double curved = Curves.easeOut.transform(t);
     _envelopeOpacity = curved;
-    _envelopeOffset = _seedVerticalOffset + (0 - _seedVerticalOffset) * curved;
-    _scale = _seedScale + (1 - _seedScale) * curved;
+    if (_reducedMotion) {
+      _envelopeOffset = 0;
+      _scale = 1;
+    } else {
+      _envelopeOffset =
+          _seedVerticalOffset + (0 - _seedVerticalOffset) * curved;
+      _scale = _seedScale + (1 - _seedScale) * curved;
+    }
     _geometry.opacity.jumpTo(_envelopeOpacity);
     _geometry.verticalOffset.jumpTo(_envelopeOffset);
     if (t >= 1) {
@@ -524,6 +565,12 @@ final class CapsuleMotionController extends ChangeNotifier {
 
   void _advanceHeightLead(Duration elapsed) {
     if (_pendingHeightTarget == null || _heightLeadRemaining <= Duration.zero) {
+      return;
+    }
+    if (_reducedMotion) {
+      _geometry.height.retarget(_pendingHeightTarget!.height);
+      _pendingHeightTarget = null;
+      _heightLeadRemaining = Duration.zero;
       return;
     }
     _heightLeadRemaining -= elapsed;
@@ -548,7 +595,19 @@ final class CapsuleMotionController extends ChangeNotifier {
     }
   }
 
+  CapsuleToastSpring get _reducedMotionSpring {
+    return CapsuleToastSpring(
+      duration:
+          _motionTheme.reducedMotionSizeDuration ??
+          const Duration(milliseconds: 240),
+      bounce: 0,
+    );
+  }
+
   CapsuleToastSpring get _springForWidth {
+    if (_reducedMotion) {
+      return _reducedMotionSpring;
+    }
     if (_usingExitSpring) {
       return _motionTheme.exitSpring!;
     }
@@ -559,6 +618,9 @@ final class CapsuleMotionController extends ChangeNotifier {
   }
 
   CapsuleToastSpring get _springForHeight {
+    if (_reducedMotion) {
+      return _reducedMotionSpring;
+    }
     if (_usingExitSpring) {
       return _motionTheme.exitSpring!;
     }
@@ -591,7 +653,9 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (revealing) {
       _contentProgress = t;
       final double remaining = 1 - t;
-      _contentTravel = Offset(10 * remaining, 3 * remaining);
+      _contentTravel = _reducedMotion
+          ? Offset.zero
+          : Offset(10 * remaining, 3 * remaining);
       if (t >= 1) {
         _contentProgress = 1;
         _contentTravel = Offset.zero;
@@ -600,7 +664,9 @@ final class CapsuleMotionController extends ChangeNotifier {
     } else {
       _contentProgress = 1 - t;
       final double remaining = t;
-      _contentTravel = Offset(10 * remaining, 3 * remaining);
+      _contentTravel = _reducedMotion
+          ? Offset.zero
+          : Offset(10 * remaining, 3 * remaining);
       if (t >= 1) {
         _contentProgress = 0;
         _contentTravel = Offset.zero;
@@ -680,7 +746,7 @@ final class CapsuleMotionController extends ChangeNotifier {
           .clamp(0.0, 1.0);
       final double curved = Curves.easeOut.transform(fadeT);
       _envelopeOpacity = 1 - curved;
-      _envelopeOffset = -_exitUpwardTravel * curved;
+      _envelopeOffset = _reducedMotion ? 0 : -_exitUpwardTravel * curved;
       _scale = 1;
       _geometry.opacity.jumpTo(_envelopeOpacity);
       _geometry.verticalOffset.jumpTo(_envelopeOffset);
