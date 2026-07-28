@@ -91,7 +91,6 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     }
 
     final ThemeData appTheme = Theme.of(context);
-    CapsuleToastTheme.maybeOfWidget(context);
 
     CapsuleToastThemeData visualTheme = CapsuleToastTheme.resolve(
       context,

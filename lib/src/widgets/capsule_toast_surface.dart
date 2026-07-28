@@ -51,47 +51,68 @@ class CapsuleToastSurface extends StatelessWidget {
   }
 }
 
-class _CapsuleToastSurfaceBody extends StatelessWidget {
+class _CapsuleToastSurfaceBody extends StatefulWidget {
   const _CapsuleToastSurfaceBody({required this.theme, required this.child});
 
   final CapsuleToastThemeData theme;
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return ClipPath(
-      clipper: _CapsuleShapeClipper(radiusCap: theme.radiusCap!),
-      child: DecoratedBox(
-        key: const ValueKey<String>('capsule_toast.decoration'),
-        decoration: BoxDecoration(
-          color: theme.surfaceColor,
-          border: Border.all(
-            color: theme.borderColor!,
-            width: theme.borderWidth!,
-          ),
-          boxShadow: theme.shadows,
-        ),
-        child: child,
-      ),
-    );
-  }
+  State<_CapsuleToastSurfaceBody> createState() =>
+      _CapsuleToastSurfaceBodyState();
 }
 
-class _CapsuleShapeClipper extends CustomClipper<Path> {
-  const _CapsuleShapeClipper({required this.radiusCap});
-
-  final double radiusCap;
+class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
+  Size? _laidOutSize;
 
   @override
-  Path getClip(Size size) {
-    final double radius = math.min(size.height / 2, radiusCap);
-    return Path()..addRRect(
-      RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
-    );
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+      _handleSizeChanged();
+    });
+  }
+
+  void _handleSizeChanged() {
+    final RenderBox? box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      return;
+    }
+    final Size size = box.size;
+    if (_laidOutSize == size) {
+      return;
+    }
+    setState(() => _laidOutSize = size);
   }
 
   @override
-  bool shouldReclip(covariant _CapsuleShapeClipper oldClipper) {
-    return radiusCap != oldClipper.radiusCap;
+  Widget build(BuildContext context) {
+    final double radius = _laidOutSize == null
+        ? widget.theme.radiusCap!
+        : math.min(_laidOutSize!.height / 2, widget.theme.radiusCap!);
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: NotificationListener<SizeChangedLayoutNotification>(
+        onNotification: (SizeChangedLayoutNotification notification) {
+          _handleSizeChanged();
+          return false;
+        },
+        child: SizeChangedLayoutNotifier(
+          child: DecoratedBox(
+            key: const ValueKey<String>('capsule_toast.decoration'),
+            decoration: BoxDecoration(
+              color: widget.theme.surfaceColor,
+              border: Border.all(
+                color: widget.theme.borderColor!,
+                width: widget.theme.borderWidth!,
+              ),
+              boxShadow: widget.theme.shadows,
+            ),
+            child: widget.child,
+          ),
+        ),
+      ),
+    );
   }
 }

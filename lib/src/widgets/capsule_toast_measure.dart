@@ -22,13 +22,13 @@ class CapsuleToastMeasure extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return _RenderCapsuleToastMeasure(onSizeChanged: onSizeChanged);
+    return RenderCapsuleToastMeasure(onSizeChanged: onSizeChanged);
   }
 
   @override
   void updateRenderObject(
     BuildContext context,
-    covariant _RenderCapsuleToastMeasure renderObject,
+    covariant RenderCapsuleToastMeasure renderObject,
   ) {
     renderObject.onSizeChanged = onSizeChanged;
   }
@@ -45,8 +45,8 @@ class CapsuleToastMeasure extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderCapsuleToastMeasure extends RenderProxyBox {
-  _RenderCapsuleToastMeasure({required this.onSizeChanged});
+class RenderCapsuleToastMeasure extends RenderProxyBox {
+  RenderCapsuleToastMeasure({required this.onSizeChanged});
 
   CapsuleToastSizeChanged onSizeChanged;
 

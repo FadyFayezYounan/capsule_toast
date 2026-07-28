@@ -108,6 +108,7 @@ class CapsuleToastContent extends StatelessWidget {
                 theme: visualTheme,
                 height: visualTheme.compactActionHeight!,
                 padding: visualTheme.compactActionPadding!,
+                style: visualTheme.compactActionStyle,
                 compact: true,
               ),
             ],

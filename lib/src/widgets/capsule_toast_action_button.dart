@@ -48,9 +48,28 @@ class CapsuleToastActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextStyle baseStyle = theme.actionTextStyle!.copyWith(
-      color: theme.foregroundColor,
-    );
+    final ButtonStyle resolvedStyle = _resolveButtonStyle();
+    const Set<WidgetState> states = <WidgetState>{};
+    final Color backgroundColor =
+        resolvedStyle.backgroundColor?.resolve(states) ??
+        theme.actionSurfaceColor!;
+    final Color foregroundColor =
+        resolvedStyle.foregroundColor?.resolve(states) ??
+        theme.foregroundColor!;
+    final TextStyle textStyle =
+        resolvedStyle.textStyle?.resolve(states) ??
+        theme.actionTextStyle!.copyWith(color: foregroundColor);
+    final EdgeInsetsGeometry resolvedPadding =
+        resolvedStyle.padding?.resolve(states) ?? padding;
+    final Size? minimumSize = resolvedStyle.minimumSize?.resolve(states);
+    final double minHeight = minimumSize?.height ?? height;
+    final OutlinedBorder? shape = resolvedStyle.shape?.resolve(states);
+    final double borderRadius = switch (shape) {
+      RoundedRectangleBorder border =>
+        border.borderRadius.resolve(Directionality.of(context)).topLeft.x,
+      StadiumBorder() => minHeight / 2,
+      _ => minHeight / 2,
+    };
 
     return Semantics(
       button: true,
@@ -60,20 +79,20 @@ class CapsuleToastActionButton extends StatelessWidget {
           type: MaterialType.transparency,
           child: InkResponse(
             onTap: () => coordinator.invokeAction(token, action),
-            borderRadius: BorderRadius.circular(height / 2),
+            borderRadius: BorderRadius.circular(borderRadius),
             child: Ink(
               decoration: BoxDecoration(
-                color: theme.actionSurfaceColor,
-                borderRadius: BorderRadius.circular(height / 2),
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(borderRadius),
               ),
               child: Padding(
-                padding: padding.resolve(Directionality.of(context)),
+                padding: resolvedPadding.resolve(Directionality.of(context)),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: height),
+                  constraints: BoxConstraints(minHeight: minHeight),
                   child: Center(
                     child: Text(
                       action.label,
-                      style: baseStyle,
+                      style: textStyle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -85,6 +104,22 @@ class CapsuleToastActionButton extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  ButtonStyle _resolveButtonStyle() {
+    final ButtonStyle defaults = ButtonStyle(
+      backgroundColor: WidgetStatePropertyAll<Color?>(theme.actionSurfaceColor),
+      foregroundColor: WidgetStatePropertyAll<Color?>(theme.foregroundColor),
+      textStyle: WidgetStatePropertyAll<TextStyle?>(
+        theme.actionTextStyle!.copyWith(color: theme.foregroundColor),
+      ),
+      minimumSize: WidgetStatePropertyAll<Size?>(Size(0, height)),
+      padding: WidgetStatePropertyAll<EdgeInsetsGeometry?>(padding),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+
+    return defaults.merge(style);
   }
 
   @override
