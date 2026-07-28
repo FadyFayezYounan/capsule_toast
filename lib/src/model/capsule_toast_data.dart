@@ -3,8 +3,52 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../manager/capsule_toast_manager.dart';
+import '../theme/capsule_toast_motion_theme.dart';
+import '../theme/capsule_toast_theme_data.dart';
 import 'capsule_toast_action.dart';
+import 'capsule_toast_handle.dart';
 import 'capsule_toast_types.dart';
+
+/// Builds custom toast content for a layout mode.
+typedef CapsuleToastContentBuilder =
+    Widget Function(BuildContext context, CapsuleToastContentContext details);
+
+/// Context passed to custom capsule toast content builders.
+@immutable
+class CapsuleToastContentContext {
+  /// Creates content builder context for a live toast.
+  const CapsuleToastContentContext({
+    required this.toast,
+    required this.mode,
+    required this.visualTheme,
+    required this.motionTheme,
+    required this.manager,
+    required this.handle,
+    required this.constraints,
+  });
+
+  /// Toast configuration being rendered.
+  final CapsuleToastData toast;
+
+  /// Active layout mode.
+  final CapsuleToastMode mode;
+
+  /// Resolved visual theme for this toast.
+  final CapsuleToastThemeData visualTheme;
+
+  /// Resolved motion theme for this toast.
+  final CapsuleToastMotionTheme motionTheme;
+
+  /// Manager used to control the toast queue.
+  final CapsuleToastManager manager;
+
+  /// Handle for live toast commands.
+  final CapsuleToastHandle handle;
+
+  /// Layout constraints for custom content.
+  final BoxConstraints constraints;
+}
 
 /// Immutable configuration for a structured capsule toast.
 @immutable
@@ -12,7 +56,7 @@ class CapsuleToastData with Diagnosticable {
   const CapsuleToastData._({
     required this.type,
     this.id,
-    required this.title,
+    this.title,
     this.message,
     this.semanticAnnouncement,
     this.initialMode = CapsuleToastMode.compact,
@@ -24,11 +68,12 @@ class CapsuleToastData with Diagnosticable {
     this.secondaryAction,
     this.displayDuration,
     this.persistent = false,
+    this.theme,
+    this.motionTheme,
+    this.compactBuilder,
+    this.expandedBuilder,
     this.textDirection,
-  }) : assert(title != ''),
-       assert(message != ''),
-       assert(semanticAnnouncement != ''),
-       assert(icon == null || iconBuilder == null),
+  }) : assert(icon == null || iconBuilder == null),
        assert(!persistent || displayDuration == null);
 
   static void _assertDurationRules(Duration? displayDuration, bool persistent) {
@@ -51,8 +96,13 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastAction? secondaryAction,
     Duration? displayDuration,
     bool persistent = false,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
+    assert(title.isNotEmpty);
     _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.success,
@@ -69,6 +119,10 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: secondaryAction,
       displayDuration: displayDuration,
       persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
       textDirection: textDirection,
     );
   }
@@ -88,8 +142,13 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastAction? secondaryAction,
     Duration? displayDuration,
     bool persistent = false,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
+    assert(title.isNotEmpty);
     _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.information,
@@ -125,8 +184,13 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastAction? secondaryAction,
     Duration? displayDuration,
     bool persistent = false,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
+    assert(title.isNotEmpty);
     _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.warning,
@@ -162,8 +226,13 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastAction? secondaryAction,
     Duration? displayDuration,
     bool persistent = false,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
+    assert(title.isNotEmpty);
     _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.error,
@@ -180,6 +249,10 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: secondaryAction,
       displayDuration: displayDuration,
       persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
       textDirection: textDirection,
     );
   }
@@ -199,8 +272,13 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastAction? secondaryAction,
     Duration? displayDuration,
     bool persistent = true,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
+    assert(title.isNotEmpty);
     _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.loading,
@@ -217,6 +295,10 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: secondaryAction,
       displayDuration: displayDuration,
       persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
       textDirection: textDirection,
     );
   }
@@ -236,8 +318,13 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastAction? secondaryAction,
     Duration? displayDuration,
     bool persistent = false,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
+    assert(title.isNotEmpty);
     _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.neutral,
@@ -254,6 +341,48 @@ class CapsuleToastData with Diagnosticable {
       secondaryAction: secondaryAction,
       displayDuration: displayDuration,
       persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
+      textDirection: textDirection,
+    );
+  }
+
+  /// Creates caller-defined capsule toast content.
+  factory CapsuleToastData.custom({
+    Object? id,
+    String? title,
+    String? message,
+    String? semanticAnnouncement,
+    CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    Duration? displayDuration,
+    bool persistent = false,
+    CapsuleToastThemeData? theme,
+    CapsuleToastMotionTheme? motionTheme,
+    CapsuleToastContentBuilder? compactBuilder,
+    CapsuleToastContentBuilder? expandedBuilder,
+    TextDirection? textDirection,
+  }) {
+    assert(
+      (title != null && title.isNotEmpty) ||
+          (semanticAnnouncement != null && semanticAnnouncement.isNotEmpty),
+    );
+    assert(compactBuilder != null || expandedBuilder != null);
+    _assertDurationRules(displayDuration, persistent);
+    return CapsuleToastData._(
+      type: CapsuleToastType.custom,
+      id: id,
+      title: title,
+      message: message,
+      semanticAnnouncement: semanticAnnouncement,
+      initialMode: initialMode,
+      displayDuration: displayDuration,
+      persistent: persistent,
+      theme: theme,
+      motionTheme: motionTheme,
+      compactBuilder: compactBuilder,
+      expandedBuilder: expandedBuilder,
       textDirection: textDirection,
     );
   }
@@ -268,7 +397,7 @@ class CapsuleToastData with Diagnosticable {
   final Object? id;
 
   /// Primary visible title text.
-  final String title;
+  final String? title;
 
   /// Optional supporting message text.
   final String? message;
@@ -303,6 +432,18 @@ class CapsuleToastData with Diagnosticable {
   /// Whether the toast stays visible until explicitly dismissed.
   final bool persistent;
 
+  /// Optional per-toast visual theme overrides.
+  final CapsuleToastThemeData? theme;
+
+  /// Optional per-toast motion theme overrides.
+  final CapsuleToastMotionTheme? motionTheme;
+
+  /// Optional custom compact content builder.
+  final CapsuleToastContentBuilder? compactBuilder;
+
+  /// Optional custom expanded content builder.
+  final CapsuleToastContentBuilder? expandedBuilder;
+
   /// Optional text direction override for toast content.
   final TextDirection? textDirection;
 
@@ -312,7 +453,7 @@ class CapsuleToastData with Diagnosticable {
   CapsuleToastData copyWith({
     CapsuleToastType? type,
     Object? id = _unset,
-    String? title,
+    Object? title = _unset,
     Object? message = _unset,
     Object? semanticAnnouncement = _unset,
     CapsuleToastMode? initialMode,
@@ -324,6 +465,10 @@ class CapsuleToastData with Diagnosticable {
     Object? secondaryAction = _unset,
     Object? displayDuration = _unset,
     bool? persistent,
+    Object? theme = _unset,
+    Object? motionTheme = _unset,
+    Object? compactBuilder = _unset,
+    Object? expandedBuilder = _unset,
     Object? textDirection = _unset,
   }) {
     final Duration? resolvedDisplayDuration = identical(displayDuration, _unset)
@@ -334,7 +479,7 @@ class CapsuleToastData with Diagnosticable {
     return CapsuleToastData._(
       type: type ?? this.type,
       id: identical(id, _unset) ? this.id : id,
-      title: title ?? this.title,
+      title: identical(title, _unset) ? this.title : title as String?,
       message: identical(message, _unset) ? this.message : message as String?,
       semanticAnnouncement: identical(semanticAnnouncement, _unset)
           ? this.semanticAnnouncement
@@ -356,6 +501,18 @@ class CapsuleToastData with Diagnosticable {
           : secondaryAction as CapsuleToastAction?,
       displayDuration: resolvedDisplayDuration,
       persistent: resolvedPersistent,
+      theme: identical(theme, _unset)
+          ? this.theme
+          : theme as CapsuleToastThemeData?,
+      motionTheme: identical(motionTheme, _unset)
+          ? this.motionTheme
+          : motionTheme as CapsuleToastMotionTheme?,
+      compactBuilder: identical(compactBuilder, _unset)
+          ? this.compactBuilder
+          : compactBuilder as CapsuleToastContentBuilder?,
+      expandedBuilder: identical(expandedBuilder, _unset)
+          ? this.expandedBuilder
+          : expandedBuilder as CapsuleToastContentBuilder?,
       textDirection: identical(textDirection, _unset)
           ? this.textDirection
           : textDirection as TextDirection?,
@@ -395,6 +552,22 @@ class CapsuleToastData with Diagnosticable {
       DiagnosticsProperty<Duration?>('displayDuration', displayDuration),
     );
     properties.add(DiagnosticsProperty<bool>('persistent', persistent));
+    properties.add(DiagnosticsProperty<CapsuleToastThemeData?>('theme', theme));
+    properties.add(
+      DiagnosticsProperty<CapsuleToastMotionTheme?>('motionTheme', motionTheme),
+    );
+    properties.add(
+      ObjectFlagProperty<CapsuleToastContentBuilder?>.has(
+        'compactBuilder',
+        compactBuilder,
+      ),
+    );
+    properties.add(
+      ObjectFlagProperty<CapsuleToastContentBuilder?>.has(
+        'expandedBuilder',
+        expandedBuilder,
+      ),
+    );
     properties.add(
       DiagnosticsProperty<TextDirection?>('textDirection', textDirection),
     );
@@ -424,6 +597,10 @@ class CapsuleToastData with Diagnosticable {
         other.secondaryAction == secondaryAction &&
         other.displayDuration == displayDuration &&
         other.persistent == persistent &&
+        other.theme == theme &&
+        other.motionTheme == motionTheme &&
+        other.compactBuilder == compactBuilder &&
+        other.expandedBuilder == expandedBuilder &&
         other.textDirection == textDirection;
   }
 
@@ -444,6 +621,10 @@ class CapsuleToastData with Diagnosticable {
     secondaryAction,
     displayDuration,
     persistent,
+    theme,
+    motionTheme,
+    compactBuilder,
+    expandedBuilder,
     textDirection,
   );
 }

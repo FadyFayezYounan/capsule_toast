@@ -9,3 +9,6 @@ export 'src/model/capsule_toast_data.dart';
 export 'src/model/capsule_toast_handle.dart' show CapsuleToastHandle;
 export 'src/model/capsule_toast_result.dart';
 export 'src/model/capsule_toast_types.dart';
+export 'src/theme/capsule_toast_motion_theme.dart';
+export 'src/theme/capsule_toast_theme.dart';
+export 'src/theme/capsule_toast_theme_data.dart';
