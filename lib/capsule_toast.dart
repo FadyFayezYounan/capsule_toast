@@ -3,6 +3,7 @@
 /// Brand-neutral morphing capsule notifications for Flutter applications.
 library;
 
+export 'src/host/capsule_toast_host.dart';
 export 'src/manager/capsule_toast_manager.dart';
 export 'src/model/capsule_toast_action.dart';
 export 'src/model/capsule_toast_data.dart';
