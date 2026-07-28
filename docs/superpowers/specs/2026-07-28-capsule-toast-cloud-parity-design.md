@@ -42,32 +42,52 @@ springs to the seed at opacity 0. The layer will therefore always call
 `resolve()` — the loading-to-success path — keeps the continuous morph. The two
 transitions read differently in the reference and must read differently here.
 
-### 2. Expand and collapse aim at a guessed target
+`CapsuleMotionController.show` also has to survive being called from a visible
+state. It previously abandoned the lifecycle only when collapsing, so re-seeding
+over a settled toast tripped the `begin` assertion; it now abandons from any
+state that is not already hidden.
 
-`capsule_toast_layer.dart` guesses the expanded size as
-`Size(current.width, max(current.height + 30, 80))` when `_expandedSize` is
-still null, because sizes are only reported by `CapsuleToastMeasure` from a
-post-frame callback on the live capsule. The spring therefore travels toward a
-wrong target — same width, arbitrary height — for one to two frames before
-re-aiming. This is the cause of the expand and collapse transitions feeling
-wrong.
+### 2. Expand and collapse run on the wrong spring
 
-The reference keeps a hidden measurer rendering the same content at natural
-size, so `dims` is always known before a transition starts.
+`expand` and `collapse` set `_usingInteractiveSpring = true`, and nothing ever
+clears it. Every expand, collapse, and later resolution therefore runs at the
+interactive spring's 320ms with 0.18 bounce.
 
-Fix: add `CapsuleToastProbe`, a `SingleChildRenderObjectWidget` whose render
-object lays the child out at the capsule's max width with unbounded height,
-reports the natural size, then reports zero size itself and paints nothing.
-Being `sizedByParent` with a constant size makes it a relayout boundary, so it
-costs one layout per content change rather than one per spring tick.
+The reference only appears to work that way. `expand` does retune to the
+interactive spring — but the effect keyed on `dims` retunes straight back to
+the width and height presets, and sets the new targets at the same moment:
 
-The layer mounts two probes, compact and expanded, outside
-`CapsuleToastAnimationScope` so slot transforms do not apply. Each probe is
-wrapped in `ExcludeSemantics`, `ExcludeFocus`, and `TickerMode(enabled: false)`
-so it cannot announce, take focus, or start a second spinner ticker.
+```js
+React.useEffect(() => {
+  retune(S.w, reduced ? SPRINGS.reduced : SPRINGS.width);
+  retune(S.h, reduced ? SPRINGS.reduced : SPRINGS.height);
+  if (phase !== 'hidden' && phase !== 'collapsing') { S.w.t = dims.w; S.h.t = dims.h; }
+}, [dims, reduced]);
+```
 
-With both sizes always populated, the guess is deleted and expand and collapse
-retarget to the true size on the frame the gesture lands.
+Measuring always follows a mode change, so that effect always fires, and it
+fires before the springs have travelled anywhere. The interactive spring is a
+one-frame bridge; the expansion the designer actually tuned runs at 420ms /
+0.16 on width and 400ms / 0.12 on height. Ours was quicker and springier than
+intended — the felt difference.
+
+Fix: `retarget` — the controller's equivalent of that effect — clears
+`_usingInteractiveSpring`, and `_prepareContinuousContentChange` does the same
+so a resolution cannot inherit an earlier expand's tuning.
+
+Secondary: the layer estimated the expanded size as
+`Size(current.width, max(current.height + 30, 80))` before the real one was
+measured. Each mode's size is cached the first time it is laid out, so the
+estimate only ever applied to the very first expand of a toast — and it aimed
+the spring at a height no capsule was going to. Hold the current size instead
+and let the measure land next frame.
+
+An earlier draft measured both modes through offstage `CapsuleToastProbe`
+render objects to remove that one-frame lag entirely. It was dropped: probing
+means rendering every toast's content twice, which puts a second copy of every
+title and action label in the widget tree. That breaks `find.text` for anyone
+writing widget tests against this package — too high a price for one frame,
+especially once the spring tuning turned out to be the real defect.
 
 ### 3. Exit content never retracts
 
@@ -129,8 +149,23 @@ CSS defines `blur-radius = 2σ`; Flutter's `BoxShadow` uses
 
 ## Testing
 
-The suites under `test/motion/`, `test/widgets/`, and
-`test/manager/` cover exit motion, content layout, goldens, and queue policy.
-Expected updates: exit retract timing, glyph sizes, the replace default, and
-regenerated goldens. New coverage for the probes reporting both mode sizes
-before a transition, and for the spinner advancing over time.
+Updated: queue tests now name `enqueue` explicitly where they mean to queue,
+the tap-toggle test reflects the true frame sequence of a first expand, and the
+five affected goldens are regenerated.
+
+New, each confirmed to fail against the unfixed code:
+
+- `show replaces the active toast by default`.
+- `compact action label is legible against the capsule`, under a light host
+  theme — the condition that produced the near-black label.
+- `loading spinner keeps turning after the capsule settles`, comparing two
+  rasterisations of the settled capsule, paired with a static-glyph test that
+  proves the comparison discriminates.
+- `exit retracts content action-first, icon last`, sampled at 110ms where all
+  four slots have started and none has finished.
+- `tap toggles compact and expanded modes` gains a third toggle asserting the
+  cached expanded size is reused exactly.
+
+Known unrelated failure: `example/test/capsule_toast_lab_test.dart` overflows
+the lab's own control panel at the 800x600 test surface. Present before this
+work; not touched by it.

@@ -11,8 +11,14 @@ void main() {
     final CapsuleToastHandle first = coordinator.show(
       CapsuleToastData.neutral(title: 'First'),
     );
-    coordinator.show(CapsuleToastData.neutral(title: 'Second'));
-    coordinator.show(CapsuleToastData.neutral(title: 'Third'));
+    coordinator.show(
+      CapsuleToastData.neutral(title: 'Second'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
+    coordinator.show(
+      CapsuleToastData.neutral(title: 'Third'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
 
     expect(coordinator.active!.data.title, 'First');
     expect(coordinator.queueLength, 2);
@@ -21,12 +27,27 @@ void main() {
     expect(coordinator.active!.data.title, 'Second');
   });
 
+  test('show replaces the active toast by default', () async {
+    final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
+    final CapsuleToastHandle first = coordinator.show(
+      CapsuleToastData.neutral(title: 'First'),
+    );
+    coordinator.show(CapsuleToastData.success(title: 'Second'));
+
+    expect((await first.closed).reason, CapsuleToastDismissReason.replaced);
+    expect(coordinator.active!.data.title, 'Second');
+    expect(coordinator.queueLength, 0);
+  });
+
   test('replace completes old handle and retains queued order', () async {
     final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
     final CapsuleToastHandle first = coordinator.show(
       CapsuleToastData.neutral(title: 'First'),
     );
-    coordinator.show(CapsuleToastData.neutral(title: 'Queued'));
+    coordinator.show(
+      CapsuleToastData.neutral(title: 'Queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
     coordinator.show(
       CapsuleToastData.error(title: 'Replacement'),
       queuePolicy: CapsuleToastQueuePolicy.replace,
@@ -44,8 +65,12 @@ void main() {
     coordinator.show(CapsuleToastData.neutral(title: 'Active'));
     final CapsuleToastHandle overflowed = coordinator.show(
       CapsuleToastData.neutral(title: 'Old queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
     );
-    coordinator.show(CapsuleToastData.neutral(title: 'New queued'));
+    coordinator.show(
+      CapsuleToastData.neutral(title: 'New queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
 
     expect(
       (await overflowed.closed).reason,
@@ -61,6 +86,7 @@ void main() {
     );
     final CapsuleToastHandle queued = coordinator.show(
       CapsuleToastData.neutral(title: 'Queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
     );
 
     coordinator.show(
@@ -81,6 +107,7 @@ void main() {
     );
     final CapsuleToastHandle queued = coordinator.show(
       CapsuleToastData.neutral(title: 'Queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
     );
 
     coordinator.disposeWithReason(CapsuleToastDismissReason.hostDisposed);
@@ -102,6 +129,7 @@ void main() {
     coordinator.show(CapsuleToastData.neutral(title: 'Active'));
     final CapsuleToastHandle rejected = coordinator.show(
       CapsuleToastData.neutral(title: 'Rejected'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
     );
 
     expect(coordinator.queueLength, 0);
@@ -158,9 +186,16 @@ void main() {
     coordinator.show(CapsuleToastData.neutral(title: 'Active'));
     final CapsuleToastHandle firstQueued = coordinator.show(
       CapsuleToastData.neutral(title: 'First queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
     );
-    coordinator.show(CapsuleToastData.neutral(title: 'Second queued'));
-    coordinator.show(CapsuleToastData.neutral(title: 'Third queued'));
+    coordinator.show(
+      CapsuleToastData.neutral(title: 'Second queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
+    coordinator.show(
+      CapsuleToastData.neutral(title: 'Third queued'),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
 
     expect(coordinator.queueLength, 3);
 

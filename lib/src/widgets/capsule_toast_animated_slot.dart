@@ -104,14 +104,6 @@ class CapsuleToastAnimatedSlot extends StatelessWidget {
         CapsuleToastSlot.action: Duration(milliseconds: 90),
       };
 
-  static const Map<CapsuleToastSlot, Duration> _exitDelays =
-      <CapsuleToastSlot, Duration>{
-        CapsuleToastSlot.action: Duration.zero,
-        CapsuleToastSlot.message: Duration(milliseconds: 40),
-        CapsuleToastSlot.title: Duration(milliseconds: 90),
-        CapsuleToastSlot.icon: Duration(milliseconds: 100),
-      };
-
   /// Opacity reaches full at 62.5% of the icon's travel, so the glyph is solid
   /// before it finishes sliding out of the centre.
   static const double _iconOpacityLead = 0.625;
@@ -174,13 +166,13 @@ class CapsuleToastAnimatedSlot extends StatelessWidget {
   double _slotProgress(CapsuleToastAnimationScope scope) {
     final Duration delay = scope.revealing
         ? (scope.motionTheme.slotDelays?[slot] ?? _defaultEnterDelays[slot]!)
-        : _exitDelays[slot]!;
+        : capsuleToastRetractDelays[slot]!;
     final Duration interval = scope.revealing
         ? (scope.motionTheme.slotRevealDuration ??
               const Duration(milliseconds: 220))
         : (scope.reducedMotion
-              ? const Duration(milliseconds: 100)
-              : const Duration(milliseconds: 130));
+              ? capsuleToastReducedRetractInterval
+              : capsuleToastRetractInterval);
     final int localMicros =
         scope.contentElapsed.inMicroseconds - delay.inMicroseconds;
     if (scope.revealing) {

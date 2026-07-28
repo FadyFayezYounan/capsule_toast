@@ -7,6 +7,36 @@ import 'package:flutter/material.dart';
 
 import '../model/capsule_toast_types.dart';
 
+/// Delay before each slot begins retracting during the capsule exit.
+///
+/// The exit peels content away in the reverse of the order it arrived: the
+/// action leaves first and the icon last, so the capsule looks like it is
+/// swallowing the event rather than dropping it.
+const Map<CapsuleToastSlot, Duration> capsuleToastRetractDelays =
+    <CapsuleToastSlot, Duration>{
+      CapsuleToastSlot.action: Duration.zero,
+      CapsuleToastSlot.message: Duration(milliseconds: 40),
+      CapsuleToastSlot.title: Duration(milliseconds: 90),
+      CapsuleToastSlot.icon: Duration(milliseconds: 100),
+    };
+
+/// How long one slot takes to retract.
+const Duration capsuleToastRetractInterval = Duration(milliseconds: 130);
+
+/// How long one slot takes to retract under reduced motion.
+const Duration capsuleToastReducedRetractInterval = Duration(milliseconds: 100);
+
+/// Time from the start of an exit until the last slot has finished retracting.
+Duration capsuleToastRetractDuration({required bool reducedMotion}) {
+  final Duration longestDelay = capsuleToastRetractDelays.values.reduce(
+    (Duration longest, Duration delay) => delay > longest ? delay : longest,
+  );
+  return longestDelay +
+      (reducedMotion
+          ? capsuleToastReducedRetractInterval
+          : capsuleToastRetractInterval);
+}
+
 /// Spring timing parameters for capsule toast motion.
 @immutable
 class CapsuleToastSpring with Diagnosticable {

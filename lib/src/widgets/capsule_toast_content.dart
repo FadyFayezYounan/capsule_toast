@@ -124,7 +124,7 @@ class CapsuleToastContent extends StatelessWidget {
           children: <Widget>[
             CapsuleToastAnimatedSlot(
               slot: CapsuleToastSlot.icon,
-              child: _buildLeadingIcon(data),
+              child: _buildLeadingIcon(data, compact: true),
             ),
             SizedBox(width: visualTheme.compactSpacing),
             Flexible(
@@ -216,7 +216,7 @@ class CapsuleToastContent extends StatelessWidget {
         children: <Widget>[
           CapsuleToastAnimatedSlot(
             slot: CapsuleToastSlot.icon,
-            child: _buildLeadingIcon(data),
+            child: _buildLeadingIcon(data, compact: false),
           ),
           SizedBox(width: visualTheme.expandedSpacing),
           Flexible(
@@ -290,12 +290,12 @@ class CapsuleToastContent extends StatelessWidget {
     );
   }
 
-  Widget _buildLeadingIcon(CapsuleToastData data) {
+  Widget _buildLeadingIcon(CapsuleToastData data, {required bool compact}) {
     return _CapsuleToastLeadingIcon(
       data: data,
       theme: visualTheme,
       vsync: vsync,
-      compact: record.desiredMode == CapsuleToastMode.compact,
+      compact: compact,
     );
   }
 }
@@ -342,7 +342,7 @@ class _CapsuleToastLeadingIcon extends StatelessWidget {
       icon = CapsuleToastGlyphWidget(
         glyph: resolved,
         color: accent,
-        size: 20,
+        size: capsuleToastGlyphSize(resolved),
         theme: theme,
       );
     }

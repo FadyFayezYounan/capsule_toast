@@ -159,7 +159,12 @@ final class CapsuleMotionController extends ChangeNotifier {
     required CapsuleToastMode mode,
     Duration? holdDuration,
   }) {
-    if (_lifecycle.state == CapsuleLifecycleState.collapsing) {
+    if (_lifecycle.state != CapsuleLifecycleState.hidden) {
+      // Whatever the outgoing toast was doing — settled, mid-expand, or
+      // half-way through its exit — a replacement ends it here. Abandoning
+      // rather than dismissing matters: the coordinator has already completed
+      // the outgoing record, so firing the exit callback now would complete
+      // the incoming one instead.
       _lifecycle.abandon();
     }
     _holdDuration = holdDuration;
@@ -189,7 +194,17 @@ final class CapsuleMotionController extends ChangeNotifier {
   }
 
   /// Retargets size without resetting lifecycle or hold progress.
+  ///
+  /// Also hands the springs back to the width and height presets. The
+  /// interactive spring is a one-frame bridge, not a mode: the reference
+  /// retunes to it inside `expand`, then retunes straight back the moment new
+  /// dimensions arrive, which is always the very next frame. Letting it stick
+  /// runs every later expand, collapse, and resolution at 320ms/0.18 bounce
+  /// instead of the 420ms/0.16 and 400ms/0.12 the design actually uses —
+  /// quicker and springier than intended, which is exactly what reads as
+  /// wrong next to the reference.
   void retarget(Size target) {
+    _usingInteractiveSpring = false;
     _geometry.width.retarget(target.width);
     if (_heightLeadRemaining > Duration.zero && _pendingHeightTarget != null) {
       _pendingHeightTarget = target;
@@ -201,28 +216,11 @@ final class CapsuleMotionController extends ChangeNotifier {
     _publish();
   }
 
-  /// Replaces content while preserving geometry position and velocity.
-  ///
-  /// When the capsule is already [CapsuleLifecycleState.hidden] or
-  /// [CapsuleLifecycleState.collapsing], falls through to [show] so a queued
-  /// promotion after exit begins a fresh entrance instead of a no-op retarget.
-  void replace({
-    required Size target,
-    required CapsuleToastMode mode,
-    Duration? holdDuration,
-  }) {
-    if (_needsFreshEntrance) {
-      show(target: target, mode: mode, holdDuration: holdDuration);
-      return;
-    }
-    _prepareContinuousContentChange(
-      target: target,
-      mode: mode,
-      holdDuration: holdDuration,
-    );
-  }
-
   /// Resolves loading content while preserving geometry continuity.
+  ///
+  /// This is the only content change that keeps the capsule moving. A new
+  /// token re-seeds through [show]; only a resolution — loading becoming its
+  /// outcome — is one continuous object changing what it says.
   void resolve({
     required Size target,
     required CapsuleToastMode mode,
@@ -328,6 +326,11 @@ final class CapsuleMotionController extends ChangeNotifier {
     _exitCompleted = false;
     _holdClock.reset();
     _holdStarted = false;
+    // The retract envelope is a fresh clock starting at the dismissal, not a
+    // continuation of the reveal's. Without this reset the very first exit
+    // frame reads as already past the end of the envelope and every slot
+    // vanishes at once instead of peeling away action-first.
+    _contentElapsed = Duration.zero;
     _contentEnvelopeActive = true;
     // Retune to the exit spring now, but retarget to the seed only once the
     // content has begun retracting (see [_advanceExit]). Between those two
@@ -409,6 +412,10 @@ final class CapsuleMotionController extends ChangeNotifier {
   }) {
     _holdDuration = holdDuration;
     _usingExitSpring = false;
+    // A resolution is a dimension change like any other, so it runs on the
+    // width and height springs rather than inheriting an earlier expand's
+    // interactive tuning.
+    _usingInteractiveSpring = false;
     _resetHoldAndContentReveal();
     if (_lifecycle.state == CapsuleLifecycleState.compact &&
         mode == CapsuleToastMode.expanded) {
@@ -654,7 +661,7 @@ final class CapsuleMotionController extends ChangeNotifier {
         const Duration(milliseconds: 90);
     final Duration total = revealing
         ? slotReveal + maxDelay
-        : const Duration(milliseconds: 160);
+        : capsuleToastRetractDuration(reducedMotion: _reducedMotion);
 
     _contentElapsed += elapsed;
     final double t = (_contentElapsed.inMicroseconds / total.inMicroseconds)

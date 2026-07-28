@@ -207,29 +207,20 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
 
     if (!_motionStarted || tokenChanged) {
       if (_motionStarted && tokenChanged) {
-        final CapsuleLifecycleState state = _motion.value.state;
-        final bool needsFreshEntrance =
-            state == CapsuleLifecycleState.hidden ||
-            state == CapsuleLifecycleState.collapsing;
-        if (needsFreshEntrance) {
-          // After exit (or mid-exit swap), begin entrance — replace-from-hidden
-          // never calls begin, so _advance would no-op and the toast stays
-          // invisible. Mid-exit must also cancel collapsing so finishActiveExit
-          // cannot complete the newly promoted record.
-          _measuredSize = null;
-          _motion.show(
-            target: seed,
-            mode: record.desiredMode,
-            holdDuration: holdDuration,
-          );
-        } else {
-          // Visible retarget: keep spring position and velocity.
-          _motion.replace(
-            target: target,
-            mode: record.desiredMode,
-            holdDuration: holdDuration,
-          );
-        }
+        // A new token is a new event, never a continuation of the old one, so
+        // it always re-seeds: geometry snaps back to 84x34 at zero opacity and
+        // replays the entrance. The reference gets this from swapping `item`
+        // identity, which re-runs its seeding effect. Sizes measured for the
+        // outgoing content are dropped — the probes report the incoming
+        // content's own sizes on the next layout.
+        _measuredSize = null;
+        _compactSize = null;
+        _expandedSize = null;
+        _motion.show(
+          target: seed,
+          mode: record.desiredMode,
+          holdDuration: holdDuration,
+        );
       } else {
         _motion.show(
           target: target,
@@ -272,16 +263,21 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       // Retarget immediately so a following pump(duration) advances springs
       // toward the new mode. tester.tap does not pump after pointer-up, so
       // waiting for measure alone leaves the ticker on the old size.
+      // Retarget immediately so a following pump(duration) advances springs
+      // toward the new mode. tester.tap does not pump after pointer-up, so
+      // waiting for measure alone leaves the ticker on the old size.
+      //
+      // Each mode's size is cached the first time it is laid out, so after one
+      // round trip the target is exact. Before that, hold the current size
+      // rather than estimating: measure lands next frame either way, and an
+      // invented target would aim the spring somewhere the capsule is never
+      // going.
       _activeMode = record.desiredMode;
       final Size current = _motion.value.size;
       if (record.desiredMode == CapsuleToastMode.expanded) {
-        final Size guess =
-            _expandedSize ??
-            Size(current.width, math.max(current.height + 30, 80));
-        _motion.expand(guess);
+        _motion.expand(_expandedSize ?? current);
       } else {
-        final Size guess = _compactSize ?? current;
-        _motion.collapse(guess);
+        _motion.collapse(_compactSize ?? current);
       }
     } else if (_measuredSize != null) {
       _motion.retarget(_measuredSize!);
@@ -728,7 +724,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
                                 semanticsLabel: announcement,
                                 child: CapsuleToastMeasure(
                                   onSizeChanged: _handleSizeChanged,
-                                  child: child,
+                                  child: child!,
                                 ),
                               ),
                             ),

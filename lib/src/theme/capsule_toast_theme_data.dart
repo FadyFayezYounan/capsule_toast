@@ -391,9 +391,14 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         neutral: Color(0x14F9F9F7),
         custom: Color(0x14F9F9F7),
       ),
+      // The reference casts `0 2px 6px` and `0 10px 30px`. CSS defines its
+      // blur radius as twice the Gaussian sigma, while Flutter's is
+      // `0.57735 * radius + 0.5`, so copying the CSS numbers across
+      // over-blurs by roughly a third. These are the radii that land on the
+      // same sigma.
       shadows: const <BoxShadow>[
-        BoxShadow(offset: Offset(0, 2), blurRadius: 6, color: _shadowColor),
-        BoxShadow(offset: Offset(0, 10), blurRadius: 30, color: _shadowColor),
+        BoxShadow(offset: Offset(0, 2), blurRadius: 4.33, color: _shadowColor),
+        BoxShadow(offset: Offset(0, 10), blurRadius: 25.1, color: _shadowColor),
       ],
       titleTextStyle: const TextStyle(
         fontSize: 13.5,
@@ -445,9 +450,17 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       ),
       // The compact chip reads as a quiet affordance, the expanded primary as
       // a solid light pill on the dark capsule, and the secondary as bare text.
+      // The colour has to be stated here, not left to the ambient text style:
+      // toast content inherits the host app's `bodyMedium`, which in a light
+      // theme is near-black and disappears against the capsule.
       compactActionStyle: const ButtonStyle(
+        foregroundColor: WidgetStatePropertyAll<Color>(Color(0xFFF9F9F7)),
         textStyle: WidgetStatePropertyAll<TextStyle>(
-          TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+          TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFFF9F9F7),
+          ),
         ),
       ),
       primaryActionStyle: const ButtonStyle(

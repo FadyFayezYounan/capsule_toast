@@ -19,13 +19,24 @@ void main() {
     final double compactHeight = capsuleSize(tester).height;
 
     await tester.tap(find.byKey(capsuleSurfaceKey));
+    // The expanded target is whatever the expanded layout measures, which is
+    // only known once that layout has been through a frame. The spring picks
+    // it up on the tick after, rather than moving toward an estimate first.
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 520));
     final double expandedHeight = capsuleSize(tester).height;
     expect(expandedHeight, greaterThan(compactHeight));
 
     await tester.tap(find.byKey(capsuleSurfaceKey));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 520));
     expect(capsuleSize(tester).height, closeTo(compactHeight, 1));
+
+    // Both sizes are cached now, so a repeat expand retargets on the same
+    // frame as the gesture and settles at exactly the height measured before.
+    await tester.tap(find.byKey(capsuleSurfaceKey));
+    await tester.pump(const Duration(milliseconds: 520));
+    expect(capsuleSize(tester).height, closeTo(expandedHeight, 1));
   });
 
   testWidgets('pressing pauses auto-dismiss', (tester) async {
