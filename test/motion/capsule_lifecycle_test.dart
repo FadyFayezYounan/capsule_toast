@@ -33,4 +33,21 @@ void main() {
     clock.resume();
     expect(clock.advance(const Duration(seconds: 1)), isTrue);
   });
+
+  test('abandon returns to hidden without exit ceremony', () {
+    final CapsuleLifecycle lifecycle = CapsuleLifecycle();
+
+    lifecycle.begin(CapsuleToastMode.compact);
+    lifecycle.didAppear();
+    lifecycle.requestDismiss(CapsuleToastDismissReason.dismissed);
+    expect(lifecycle.state, CapsuleLifecycleState.collapsing);
+
+    lifecycle.abandon();
+    expect(lifecycle.state, CapsuleLifecycleState.hidden);
+    expect(lifecycle.pendingDismissal, isNull);
+
+    lifecycle.begin(CapsuleToastMode.expanded);
+    expect(lifecycle.state, CapsuleLifecycleState.seed);
+    expect(lifecycle.mode, CapsuleToastMode.expanded);
+  });
 }

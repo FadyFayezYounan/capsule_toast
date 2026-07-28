@@ -10,6 +10,7 @@ import '../manager/capsule_toast_coordinator.dart';
 import '../manager/capsule_toast_record.dart';
 import '../model/capsule_toast_data.dart';
 import '../model/capsule_toast_types.dart';
+import '../motion/capsule_lifecycle.dart';
 import '../motion/capsule_motion_controller.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 import '../theme/capsule_toast_theme.dart';
@@ -156,11 +157,29 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
 
     if (!_motionStarted || tokenChanged) {
       if (_motionStarted && tokenChanged) {
-        _motion.replace(
-          target: target,
-          mode: record.desiredMode,
-          holdDuration: holdDuration,
-        );
+        final CapsuleLifecycleState state = _motion.value.state;
+        final bool needsFreshEntrance =
+            state == CapsuleLifecycleState.hidden ||
+            state == CapsuleLifecycleState.collapsing;
+        if (needsFreshEntrance) {
+          // After exit (or mid-exit swap), begin entrance — replace-from-hidden
+          // never calls begin, so _advance would no-op and the toast stays
+          // invisible. Mid-exit must also cancel collapsing so finishActiveExit
+          // cannot complete the newly promoted record.
+          _measuredSize = null;
+          _motion.show(
+            target: seed,
+            mode: record.desiredMode,
+            holdDuration: holdDuration,
+          );
+        } else {
+          // Visible retarget: keep spring position and velocity.
+          _motion.replace(
+            target: target,
+            mode: record.desiredMode,
+            holdDuration: holdDuration,
+          );
+        }
       } else {
         _motion.show(
           target: target,
@@ -172,6 +191,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       _activeToken = record.token;
       _activeRevision = record.revision;
       _activeMode = record.desiredMode;
+      _pendingDismissal = null;
     } else if (revisionChanged) {
       _motion.resolve(
         target: target,

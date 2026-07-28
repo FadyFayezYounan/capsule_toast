@@ -117,6 +117,14 @@ final class CapsuleLifecycle {
     _reset();
   }
 
+  /// Returns to [CapsuleLifecycleState.hidden] without an exit ceremony.
+  ///
+  /// Used when a new presentation interrupts [CapsuleLifecycleState.collapsing]
+  /// so the motion controller must not invoke its exit-completed callback.
+  void abandon() {
+    _reset();
+  }
+
   void _reset() {
     _state = CapsuleLifecycleState.hidden;
     _mode = CapsuleToastMode.compact;

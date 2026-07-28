@@ -137,16 +137,25 @@ final class CapsuleMotionController extends ChangeNotifier {
   Offset get debugContentTravel => _contentTravel;
 
   /// Starts entrance from the seed geometry toward [target].
+  ///
+  /// Interrupts an in-progress exit without invoking [onExitCompleted], so a
+  /// mid-exit token swap cannot complete the newly active record.
   void show({
     required Size target,
     required CapsuleToastMode mode,
     Duration? holdDuration,
   }) {
+    if (_lifecycle.state == CapsuleLifecycleState.collapsing) {
+      _lifecycle.abandon();
+    }
     _holdDuration = holdDuration;
     _holdStarted = false;
     _holdClock.reset();
     _usingExitSpring = false;
     _usingInteractiveSpring = false;
+    _exitElapsed = Duration.zero;
+    _exitSizeRetargeted = false;
+    _exitFadeStarted = false;
     _exitCompleted = false;
     _pendingExpandAfterAppear = mode == CapsuleToastMode.expanded;
     _lifecycle.begin(mode);
@@ -177,11 +186,19 @@ final class CapsuleMotionController extends ChangeNotifier {
   }
 
   /// Replaces content while preserving geometry position and velocity.
+  ///
+  /// When the capsule is already [CapsuleLifecycleState.hidden] or
+  /// [CapsuleLifecycleState.collapsing], falls through to [show] so a queued
+  /// promotion after exit begins a fresh entrance instead of a no-op retarget.
   void replace({
     required Size target,
     required CapsuleToastMode mode,
     Duration? holdDuration,
   }) {
+    if (_needsFreshEntrance) {
+      show(target: target, mode: mode, holdDuration: holdDuration);
+      return;
+    }
     _prepareContinuousContentChange(
       target: target,
       mode: mode,
@@ -195,11 +212,20 @@ final class CapsuleMotionController extends ChangeNotifier {
     required CapsuleToastMode mode,
     Duration? holdDuration,
   }) {
+    if (_needsFreshEntrance) {
+      show(target: target, mode: mode, holdDuration: holdDuration);
+      return;
+    }
     _prepareContinuousContentChange(
       target: target,
       mode: mode,
       holdDuration: holdDuration,
     );
+  }
+
+  bool get _needsFreshEntrance {
+    return _lifecycle.state == CapsuleLifecycleState.hidden ||
+        _lifecycle.state == CapsuleLifecycleState.collapsing;
   }
 
   /// Expands toward [target] without clearing spring velocity.
