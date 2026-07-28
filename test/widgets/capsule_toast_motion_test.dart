@@ -58,7 +58,9 @@ void main() {
     expect(tester.element(find.byKey(capsuleSurfaceKey)), same(surfaceBefore));
   });
 
-  testWidgets('enqueue after exit promotes with fresh entrance', (tester) async {
+  testWidgets('enqueue after exit promotes with fresh entrance', (
+    tester,
+  ) async {
     final ToastTestHarness harness = await pumpToastHarness(
       tester,
       CapsuleToastData.success(title: 'First', persistent: true),

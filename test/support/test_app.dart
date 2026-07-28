@@ -84,9 +84,13 @@ Future<BuildContext> pumpToast(
   CapsuleToastHost.of(commandContext).show(toast);
   await tester.pump();
   if (settle) {
-    // Advance through the reference settle window. Avoid pumpAndSettle so
-    // persistent loading glyphs and hold clocks do not hang the harness.
-    await tester.pump(const Duration(milliseconds: 520));
+    // Advance through the reference settle window in steps so bounce springs
+    // can reach settlement (a single long pump can leave lifecycle in seed).
+    // Avoid pumpAndSettle so persistent loading glyphs and hold clocks do not
+    // hang the harness.
+    for (int i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
   }
   return commandContext;
 }

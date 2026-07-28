@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../theme/capsule_toast_theme_data.dart';
 
@@ -129,7 +130,14 @@ class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
     if (_laidOutSize == size) {
       return;
     }
-    setState(() => _laidOutSize = size);
+    // Defer to the next frame — SizeChangedLayoutNotification fires during
+    // layout, and setState there schedules a forbidden mid-frame rebuild.
+    SchedulerBinding.instance.addPostFrameCallback((Duration _) {
+      if (!mounted || _laidOutSize == size) {
+        return;
+      }
+      setState(() => _laidOutSize = size);
+    });
   }
 
   @override

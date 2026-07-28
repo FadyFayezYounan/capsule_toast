@@ -2,13 +2,14 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../manager/capsule_toast_coordinator.dart';
 import '../model/capsule_toast_action.dart';
 import '../theme/capsule_toast_theme_data.dart';
 
 /// Tappable action control inside a capsule toast.
-class CapsuleToastActionButton extends StatelessWidget {
+class CapsuleToastActionButton extends StatefulWidget {
   /// Creates an action button that routes presses through [coordinator].
   const CapsuleToastActionButton({
     super.key,
@@ -47,22 +48,42 @@ class CapsuleToastActionButton extends StatelessWidget {
   final bool compact;
 
   @override
+  State<CapsuleToastActionButton> createState() =>
+      _CapsuleToastActionButtonState();
+}
+
+class _CapsuleToastActionButtonState extends State<CapsuleToastActionButton> {
+  late final FocusNode _focusNode = FocusNode(
+    debugLabel: 'capsule_toast.action.${widget.action.label}',
+  );
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _invoke() {
+    widget.coordinator.invokeAction(widget.token, widget.action);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final ButtonStyle resolvedStyle = _resolveButtonStyle();
     const Set<WidgetState> states = <WidgetState>{};
     final Color backgroundColor =
         resolvedStyle.backgroundColor?.resolve(states) ??
-        theme.actionSurfaceColor!;
+        widget.theme.actionSurfaceColor!;
     final Color foregroundColor =
         resolvedStyle.foregroundColor?.resolve(states) ??
-        theme.foregroundColor!;
+        widget.theme.foregroundColor!;
     final TextStyle textStyle =
         resolvedStyle.textStyle?.resolve(states) ??
-        theme.actionTextStyle!.copyWith(color: foregroundColor);
+        widget.theme.actionTextStyle!.copyWith(color: foregroundColor);
     final EdgeInsetsGeometry resolvedPadding =
-        resolvedStyle.padding?.resolve(states) ?? padding;
+        resolvedStyle.padding?.resolve(states) ?? widget.padding;
     final Size? minimumSize = resolvedStyle.minimumSize?.resolve(states);
-    final double minHeight = minimumSize?.height ?? height;
+    final double minHeight = minimumSize?.height ?? widget.height;
     final OutlinedBorder? shape = resolvedStyle.shape?.resolve(states);
     final double borderRadius = switch (shape) {
       RoundedRectangleBorder border =>
@@ -73,28 +94,57 @@ class CapsuleToastActionButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      label: action.semanticLabel ?? action.label,
-      child: FocusableActionDetector(
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkResponse(
-            onTap: () => coordinator.invokeAction(token, action),
-            borderRadius: BorderRadius.circular(borderRadius),
-            child: Ink(
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(borderRadius),
-              ),
-              child: Padding(
-                padding: resolvedPadding.resolve(Directionality.of(context)),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: minHeight),
-                  child: Center(
-                    child: Text(
-                      action.label,
-                      style: textStyle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+      label: widget.action.semanticLabel ?? widget.action.label,
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (ActivateIntent intent) {
+              _invoke();
+              return null;
+            },
+          ),
+          ButtonActivateIntent: CallbackAction<ButtonActivateIntent>(
+            onInvoke: (ButtonActivateIntent intent) {
+              _invoke();
+              return null;
+            },
+          ),
+        },
+        child: Shortcuts(
+          shortcuts: const <ShortcutActivator, Intent>{
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          },
+          child: Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              focusNode: _focusNode,
+              borderRadius: BorderRadius.circular(borderRadius),
+              onTap: _invoke,
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onVerticalDragStart: (_) {},
+                onVerticalDragUpdate: (_) {},
+                onVerticalDragEnd: (_) {},
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    borderRadius: BorderRadius.circular(borderRadius),
+                  ),
+                  child: Padding(
+                    padding: resolvedPadding.resolve(
+                      Directionality.of(context),
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: minHeight),
+                      child: Center(
+                        child: Text(
+                          widget.action.label,
+                          style: textStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -108,26 +158,34 @@ class CapsuleToastActionButton extends StatelessWidget {
 
   ButtonStyle _resolveButtonStyle() {
     final ButtonStyle defaults = ButtonStyle(
-      backgroundColor: WidgetStatePropertyAll<Color?>(theme.actionSurfaceColor),
-      foregroundColor: WidgetStatePropertyAll<Color?>(theme.foregroundColor),
-      textStyle: WidgetStatePropertyAll<TextStyle?>(
-        theme.actionTextStyle!.copyWith(color: theme.foregroundColor),
+      backgroundColor: WidgetStatePropertyAll<Color?>(
+        widget.theme.actionSurfaceColor,
       ),
-      minimumSize: WidgetStatePropertyAll<Size?>(Size(0, height)),
-      padding: WidgetStatePropertyAll<EdgeInsetsGeometry?>(padding),
+      foregroundColor: WidgetStatePropertyAll<Color?>(
+        widget.theme.foregroundColor,
+      ),
+      textStyle: WidgetStatePropertyAll<TextStyle?>(
+        widget.theme.actionTextStyle!.copyWith(
+          color: widget.theme.foregroundColor,
+        ),
+      ),
+      minimumSize: WidgetStatePropertyAll<Size?>(Size(0, widget.height)),
+      padding: WidgetStatePropertyAll<EdgeInsetsGeometry?>(widget.padding),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,
     );
 
-    return defaults.merge(style);
+    return defaults.merge(widget.style);
   }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
-    properties.add(DiagnosticsProperty<CapsuleToastAction>('action', action));
-    properties.add(IntProperty('token', token));
-    properties.add(DoubleProperty('height', height));
-    properties.add(DiagnosticsProperty<bool>('compact', compact));
+    properties.add(
+      DiagnosticsProperty<CapsuleToastAction>('action', widget.action),
+    );
+    properties.add(IntProperty('token', widget.token));
+    properties.add(DoubleProperty('height', widget.height));
+    properties.add(DiagnosticsProperty<bool>('compact', widget.compact));
   }
 }

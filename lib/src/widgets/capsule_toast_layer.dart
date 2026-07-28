@@ -3,8 +3,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 
 import '../manager/capsule_toast_coordinator.dart';
 import '../manager/capsule_toast_record.dart';
@@ -57,12 +59,27 @@ class CapsuleToastLayer extends StatefulWidget {
 
 class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   Size? _measuredSize;
+  Size? _compactSize;
+  Size? _expandedSize;
   int? _activeToken;
   int _activeRevision = -1;
   CapsuleToastMode? _activeMode;
   CapsuleToastDismissReason? _pendingDismissal;
   bool _motionStarted = false;
   bool _syncScheduled = false;
+  bool _pointerDown = false;
+  bool _hovering = false;
+  bool _dragging = false;
+  bool _longPressActive = false;
+  double _dragDy = 0;
+  bool _entranceHapticFired = false;
+  bool _resolveHapticPending = false;
+  final FocusNode _capsuleFocusNode = FocusNode(
+    debugLabel: 'capsule_toast.surface',
+  )..skipTraversal = true;
+  final FocusScopeNode _toastFocusScope = FocusScopeNode(
+    debugLabel: 'capsule_toast.scope',
+  );
 
   CapsuleMotionController get _motion => widget.motion;
 
@@ -70,6 +87,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   void initState() {
     super.initState();
     widget.coordinator.addListener(_handleCoordinatorChanged);
+    _motion.addListener(_handleMotionChanged);
   }
 
   @override
@@ -79,21 +97,35 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       oldWidget.coordinator.removeListener(_handleCoordinatorChanged);
       widget.coordinator.addListener(_handleCoordinatorChanged);
     }
+    if (oldWidget.motion != widget.motion) {
+      oldWidget.motion.removeListener(_handleMotionChanged);
+      widget.motion.addListener(_handleMotionChanged);
+    }
   }
 
   @override
   void dispose() {
+    _motion.removeListener(_handleMotionChanged);
     widget.coordinator.removeListener(_handleCoordinatorChanged);
+    _capsuleFocusNode.dispose();
+    _toastFocusScope.dispose();
     super.dispose();
   }
 
   void _handleCoordinatorChanged() {
+    // Sync tracking immediately (mode changes defer spring retarget until
+    // measure). Then rebuild so expanded/collapsed content is laid out in the
+    // same frame the gesture ends — before a subsequent pump(duration).
     if (mounted) {
       _syncMotion();
+      setState(() {});
     } else {
       _scheduleMotionSync();
     }
-    setState(() {});
+  }
+
+  void _handleMotionChanged() {
+    _maybeTriggerHaptic();
   }
 
   void _scheduleMotionSync() {
@@ -127,6 +159,22 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _activeMode = null;
     _pendingDismissal = null;
     _measuredSize = null;
+    _compactSize = null;
+    _expandedSize = null;
+    _pointerDown = false;
+    _hovering = false;
+    _dragging = false;
+    _longPressActive = false;
+    _dragDy = 0;
+    _entranceHapticFired = false;
+    _resolveHapticPending = false;
+    _syncInteractionPaused();
+  }
+
+  void _syncInteractionPaused() {
+    _motion.setInteractionPaused(
+      _pointerDown || _hovering || _dragging || _longPressActive,
+    );
   }
 
   void _syncMotion() {
@@ -192,6 +240,23 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       _activeRevision = record.revision;
       _activeMode = record.desiredMode;
       _pendingDismissal = null;
+      _entranceHapticFired = false;
+      _resolveHapticPending = false;
+      _dragDy = 0;
+      _dragging = false;
+      _longPressActive = false;
+      final bool hasActions =
+          record.data.compactAction != null ||
+          record.data.primaryAction != null ||
+          record.data.secondaryAction != null;
+      if (hasActions) {
+        WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+          if (!mounted || _activeToken != record.token) {
+            return;
+          }
+          _toastFocusScope.requestFocus();
+        });
+      }
     } else if (revisionChanged) {
       _motion.resolve(
         target: target,
@@ -200,13 +265,22 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       );
       _activeRevision = record.revision;
       _activeMode = record.desiredMode;
+      _resolveHapticPending = true;
     } else if (modeChanged) {
-      if (record.desiredMode == CapsuleToastMode.expanded) {
-        _motion.expand(target);
-      } else {
-        _motion.collapse(target);
-      }
+      // Retarget immediately so a following pump(duration) advances springs
+      // toward the new mode. tester.tap does not pump after pointer-up, so
+      // waiting for measure alone leaves the ticker on the old size.
       _activeMode = record.desiredMode;
+      final Size current = _motion.value.size;
+      if (record.desiredMode == CapsuleToastMode.expanded) {
+        final Size guess =
+            _expandedSize ??
+            Size(current.width, math.max(current.height + 30, 80));
+        _motion.expand(guess);
+      } else {
+        final Size guess = _compactSize ?? current;
+        _motion.collapse(guess);
+      }
     } else if (_measuredSize != null) {
       _motion.retarget(_measuredSize!);
     }
@@ -223,21 +297,295 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       return;
     }
     _measuredSize = size;
+    final CapsuleToastRecord? record = widget.coordinator.active;
+    if (record != null) {
+      if (record.desiredMode == CapsuleToastMode.compact) {
+        _compactSize = size;
+      } else {
+        _expandedSize = size;
+      }
+    }
     if (!_motionStarted) {
       _scheduleMotionSync();
       return;
     }
-    final CapsuleToastRecord? record = widget.coordinator.active;
     if (record == null) {
       return;
     }
-    if (_activeToken != record.token ||
-        _activeRevision != record.revision ||
-        _activeMode != record.desiredMode) {
+    if (_activeToken != record.token || _activeRevision != record.revision) {
       _scheduleMotionSync();
       return;
     }
+    if (_activeMode != record.desiredMode) {
+      _scheduleMotionSync();
+      return;
+    }
+
+    final CapsuleLifecycleState state = _motion.value.state;
+    if (record.desiredMode == CapsuleToastMode.expanded &&
+        state != CapsuleLifecycleState.expanded &&
+        state != CapsuleLifecycleState.collapsing &&
+        state != CapsuleLifecycleState.hidden) {
+      _motion.expand(size);
+      return;
+    }
+    if (record.desiredMode == CapsuleToastMode.compact &&
+        state == CapsuleLifecycleState.expanded) {
+      _motion.collapse(size);
+      return;
+    }
     _motion.retarget(size);
+  }
+
+  void _toggleMode(CapsuleToastRecord record) {
+    if (record.desiredMode == CapsuleToastMode.compact) {
+      widget.coordinator.expand(record.token);
+    } else {
+      widget.coordinator.collapse(record.token);
+    }
+  }
+
+  void _expand(CapsuleToastRecord record) {
+    widget.coordinator.expand(record.token);
+  }
+
+  void _startDrag(DragStartDetails details) {
+    _dragging = true;
+    _dragDy = 0;
+    _syncInteractionPaused();
+    _motion.beginDrag();
+  }
+
+  void _updateDrag(
+    DragUpdateDetails details,
+    CapsuleToastMotionTheme motionTheme,
+  ) {
+    _dragDy += details.delta.dy;
+    final double resistance = motionTheme.downwardDragResistance ?? 0.22;
+    final double visual = _dragDy < 0 ? _dragDy : _dragDy * resistance;
+    _motion.updateDragOffset(visual);
+  }
+
+  void _finishDrag(
+    DragEndDetails details,
+    CapsuleToastRecord record,
+    CapsuleToastMotionTheme motionTheme,
+  ) {
+    final double resistance = motionTheme.downwardDragResistance ?? 0.22;
+    final double visual = _dragDy < 0 ? _dragDy : _dragDy * resistance;
+    final double dismissalDistance = motionTheme.dismissalDistance ?? 26;
+    final double dismissalVelocity = motionTheme.dismissalVelocity ?? 420;
+    final double velocity = details.primaryVelocity ?? 0;
+    final bool shouldDismiss =
+        visual <= -dismissalDistance || -velocity >= dismissalVelocity;
+
+    _dragging = false;
+    _dragDy = 0;
+    _pointerDown = false;
+    _longPressActive = false;
+    _syncInteractionPaused();
+
+    if (shouldDismiss) {
+      widget.coordinator.requestDismiss(
+        record.token,
+        CapsuleToastDismissReason.swiped,
+        velocity: velocity.abs(),
+      );
+    } else {
+      _motion.cancelDrag();
+    }
+  }
+
+  void _cancelDrag() {
+    _dragging = false;
+    _dragDy = 0;
+    _pointerDown = false;
+    _longPressActive = false;
+    _syncInteractionPaused();
+    _motion.cancelDrag();
+  }
+
+  bool _isReducedMotion(CapsuleToastMotionTheme motionTheme) {
+    return switch (motionTheme.reducedMotionPolicy ??
+        CapsuleToastReducedMotionPolicy.system) {
+      CapsuleToastReducedMotionPolicy.always => true,
+      CapsuleToastReducedMotionPolicy.never => false,
+      CapsuleToastReducedMotionPolicy.system => MediaQuery.disableAnimationsOf(
+        context,
+      ),
+    };
+  }
+
+  bool _shouldTriggerHaptic(CapsuleToastMotionTheme motionTheme) {
+    if (motionTheme.hapticPolicy !=
+        CapsuleToastHapticPolicy.supportedPlatforms) {
+      return false;
+    }
+    if (_isReducedMotion(motionTheme)) {
+      return false;
+    }
+    if (kIsWeb) {
+      return false;
+    }
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  void _maybeTriggerHaptic() {
+    final CapsuleToastRecord? record = widget.coordinator.active;
+    if (record == null || !mounted) {
+      return;
+    }
+    final CapsuleMotionSnapshot snapshot = _motion.value;
+    if (!snapshot.isSettled) {
+      return;
+    }
+    final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
+      context,
+    ).merge(record.data.motionTheme);
+    if (!_shouldTriggerHaptic(motionTheme)) {
+      _entranceHapticFired = true;
+      _resolveHapticPending = false;
+      return;
+    }
+    if (!_entranceHapticFired) {
+      _entranceHapticFired = true;
+      _resolveHapticPending = false;
+      HapticFeedback.lightImpact();
+      return;
+    }
+    if (_resolveHapticPending) {
+      _resolveHapticPending = false;
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  Widget _buildInteractiveCapsule({
+    required CapsuleToastRecord record,
+    required CapsuleToastMotionTheme motionTheme,
+    required Widget child,
+  }) {
+    // Own focus scope so action controls are reachable by Tab even though the
+    // toast layer sits beside (not inside) the navigator route FocusScope.
+    return FocusScope(
+      node: _toastFocusScope,
+      child: FocusTraversalGroup(
+        child: FocusableActionDetector(
+          focusNode: _capsuleFocusNode,
+          descendantsAreFocusable: true,
+          descendantsAreTraversable: true,
+          shortcuts: const <ShortcutActivator, Intent>{
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          },
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (ActivateIntent intent) {
+                // Only toggle when the capsule surface itself is focused —
+                // action buttons handle ActivateIntent with their own Actions.
+                if (_capsuleFocusNode.hasFocus) {
+                  _toggleMode(record);
+                }
+                return null;
+              },
+            ),
+          },
+          child: MouseRegion(
+            onEnter: (_) {
+              _hovering = true;
+              _syncInteractionPaused();
+            },
+            onExit: (_) {
+              _hovering = false;
+              _syncInteractionPaused();
+            },
+            child: Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (_) {
+                _pointerDown = true;
+                _syncInteractionPaused();
+              },
+              onPointerUp: (_) {
+                _pointerDown = false;
+                _longPressActive = false;
+                _syncInteractionPaused();
+              },
+              onPointerCancel: (_) {
+                _pointerDown = false;
+                _longPressActive = false;
+                _dragging = false;
+                _syncInteractionPaused();
+              },
+              child: RawGestureDetector(
+                behavior: HitTestBehavior.opaque,
+                gestures: <Type, GestureRecognizerFactory>{
+                  TapGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                        TapGestureRecognizer
+                      >(TapGestureRecognizer.new, (
+                        TapGestureRecognizer recognizer,
+                      ) {
+                        recognizer
+                          ..onTapDown = (TapDownDetails _) {
+                            _pointerDown = true;
+                            _syncInteractionPaused();
+                          }
+                          ..onTapCancel = () {
+                            // Pointer may still be down for long-press/drag;
+                            // Listener onPointerUp clears the pause.
+                          }
+                          ..onTapUp = (TapUpDetails _) {
+                            _capsuleFocusNode.requestFocus();
+                            _toggleMode(record);
+                          };
+                      }),
+                  LongPressGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                        LongPressGestureRecognizer
+                      >(
+                        () => LongPressGestureRecognizer(
+                          duration:
+                              motionTheme.longPressDuration ??
+                              const Duration(milliseconds: 320),
+                        ),
+                        (LongPressGestureRecognizer recognizer) {
+                          recognizer
+                            ..onLongPressStart = (LongPressStartDetails _) {
+                              _longPressActive = true;
+                              _pointerDown = true;
+                              _syncInteractionPaused();
+                              _expand(record);
+                            }
+                            ..onLongPressEnd = (LongPressEndDetails _) {
+                              _longPressActive = false;
+                              _syncInteractionPaused();
+                            };
+                        },
+                      ),
+                  VerticalDragGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                        VerticalDragGestureRecognizer
+                      >(VerticalDragGestureRecognizer.new, (
+                        VerticalDragGestureRecognizer recognizer,
+                      ) {
+                        recognizer
+                          ..onStart = _startDrag
+                          ..onUpdate = (DragUpdateDetails details) {
+                            _updateDrag(details, motionTheme);
+                          }
+                          ..onEnd = (DragEndDetails details) {
+                            _finishDrag(details, record, motionTheme);
+                          }
+                          ..onCancel = _cancelDrag;
+                      }),
+                },
+                child: child,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -270,6 +618,23 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
         ? MediaQuery.viewPaddingOf(context).top + visualTheme.verticalOffset!
         : visualTheme.verticalOffset!;
 
+    // Keep gesture detectors outside AnimatedBuilder so recognizers are not
+    // recreated on every spring tick.
+    final Widget interactiveChild = _buildInteractiveCapsule(
+      record: record,
+      motionTheme: motionTheme,
+      child: DefaultTextStyle.merge(
+        style: appTheme.textTheme.bodyMedium,
+        child: CapsuleToastContent(
+          record: record,
+          coordinator: widget.coordinator,
+          visualTheme: visualTheme,
+          motionTheme: motionTheme,
+          vsync: widget.vsync,
+        ),
+      ),
+    );
+
     return Positioned(
       top: 0,
       left: 0,
@@ -288,38 +653,30 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
 
             return AnimatedBuilder(
               animation: _motion,
-              child: DefaultTextStyle.merge(
-                style: appTheme.textTheme.bodyMedium,
-                child: CapsuleToastContent(
-                  record: record,
-                  coordinator: widget.coordinator,
-                  visualTheme: visualTheme,
-                  motionTheme: motionTheme,
-                  vsync: widget.vsync,
-                ),
-              ),
+              child: interactiveChild,
               builder: (BuildContext context, Widget? child) {
                 final CapsuleMotionSnapshot snapshot = _motion.value;
-                return Padding(
-                  padding: EdgeInsets.only(
-                    top: topInset + snapshot.verticalOffset,
-                  ),
-                  child: Opacity(
-                    opacity: snapshot.opacity,
-                    child: Transform.scale(
-                      scale: snapshot.scale,
-                      alignment: Alignment.topCenter,
-                      child: Align(
+                return Transform.translate(
+                  offset: Offset(0, snapshot.verticalOffset),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: topInset),
+                    child: Opacity(
+                      opacity: snapshot.opacity,
+                      child: Transform.scale(
+                        scale: snapshot.scale,
                         alignment: Alignment.topCenter,
-                        child: SizedBox.fromSize(
-                          size: snapshot.size,
-                          child: CapsuleToastSurface(
-                            theme: visualTheme,
-                            measureMaxWidth: measureMaxWidth,
-                            liveSize: snapshot.size,
-                            child: CapsuleToastMeasure(
-                              onSizeChanged: _handleSizeChanged,
-                              child: child,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: SizedBox.fromSize(
+                            size: snapshot.size,
+                            child: CapsuleToastSurface(
+                              theme: visualTheme,
+                              measureMaxWidth: measureMaxWidth,
+                              liveSize: snapshot.size,
+                              child: CapsuleToastMeasure(
+                                onSizeChanged: _handleSizeChanged,
+                                child: child,
+                              ),
                             ),
                           ),
                         ),

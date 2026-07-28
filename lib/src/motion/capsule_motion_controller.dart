@@ -98,6 +98,7 @@ final class CapsuleMotionController extends ChangeNotifier {
   bool _exitCompleted = false;
   bool _holdStarted = false;
   bool _interactionPaused = false;
+  bool _dragging = false;
   bool _usingExitSpring = false;
   bool _usingInteractiveSpring = false;
   bool _pendingExpandAfterAppear = false;
@@ -132,6 +133,14 @@ final class CapsuleMotionController extends ChangeNotifier {
         _geometry.height.value > _geometry.height.target + 0.06;
   }
 
+  /// Whether the hold clock is currently running (possibly paused).
+  @visibleForTesting
+  bool get debugHoldStarted => _holdStarted;
+
+  /// Whether interaction currently pauses the hold clock.
+  @visibleForTesting
+  bool get debugInteractionPaused => _interactionPaused;
+
   /// Directional content travel remaining for tests.
   @visibleForTesting
   Offset get debugContentTravel => _contentTravel;
@@ -151,6 +160,8 @@ final class CapsuleMotionController extends ChangeNotifier {
     _holdDuration = holdDuration;
     _holdStarted = false;
     _holdClock.reset();
+    _dragging = false;
+    _interactionPaused = false;
     _usingExitSpring = false;
     _usingInteractiveSpring = false;
     _exitElapsed = Duration.zero;
@@ -238,8 +249,7 @@ final class CapsuleMotionController extends ChangeNotifier {
     } else if (_lifecycle.state == CapsuleLifecycleState.seed) {
       _pendingExpandAfterAppear = true;
     }
-    _holdStarted = false;
-    _holdClock.reset();
+    _resetHoldAndContentReveal();
     _retargetImmediate(target);
     _ensureTicker();
     _publish();
@@ -253,9 +263,45 @@ final class CapsuleMotionController extends ChangeNotifier {
       _lifecycle.collapse();
     }
     _pendingExpandAfterAppear = false;
-    _holdStarted = false;
-    _holdClock.reset();
+    _resetHoldAndContentReveal();
     _retargetImmediate(target);
+    _ensureTicker();
+    _publish();
+  }
+
+  /// Begins an interactive vertical drag.
+  void beginDrag() {
+    if (_lifecycle.state == CapsuleLifecycleState.hidden ||
+        _lifecycle.state == CapsuleLifecycleState.collapsing) {
+      return;
+    }
+    _dragging = true;
+    _usingInteractiveSpring = true;
+    _usingExitSpring = false;
+    _publish();
+  }
+
+  /// Tracks the pointer with 1:1 / resisted [offset] during a drag.
+  void updateDragOffset(double offset) {
+    if (!_dragging) {
+      beginDrag();
+    }
+    _geometry.verticalOffset.jumpTo(offset);
+    _envelopeOffset = offset;
+    _publish();
+  }
+
+  /// Ends a drag by springing back to rest with the interactive spring.
+  void cancelDrag() {
+    if (!_dragging &&
+        _geometry.verticalOffset.target == 0 &&
+        _geometry.verticalOffset.isSettled) {
+      return;
+    }
+    _dragging = false;
+    _usingInteractiveSpring = true;
+    _usingExitSpring = false;
+    _geometry.verticalOffset.retarget(0);
     _ensureTicker();
     _publish();
   }
@@ -269,6 +315,8 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (_lifecycle.state == CapsuleLifecycleState.seed) {
       _forceAppear();
     }
+    _dragging = false;
+    _interactionPaused = false;
     _lifecycle.requestDismiss(reason);
     _exitElapsed = Duration.zero;
     _exitSizeRetargeted = false;
@@ -291,8 +339,11 @@ final class CapsuleMotionController extends ChangeNotifier {
       _holdClock.pause();
     } else {
       _holdClock.resume();
-    }
-    if (!paused && _holdStarted && !_isIdle) {
+      if (!_holdStarted) {
+        _maybeStartHold();
+      }
+      // Always restart the ticker on resume — settlement may have idled the
+      // ticker while the pointer was down with the hold clock paused.
       _ensureTicker();
     }
     _publish();
@@ -316,13 +367,8 @@ final class CapsuleMotionController extends ChangeNotifier {
     Duration? holdDuration,
   }) {
     _holdDuration = holdDuration;
-    _holdStarted = false;
-    _holdClock.reset();
     _usingExitSpring = false;
-    _contentElapsed = Duration.zero;
-    _contentEnvelopeActive = true;
-    _contentProgress = 0;
-    _contentTravel = Offset.zero;
+    _resetHoldAndContentReveal();
     if (_lifecycle.state == CapsuleLifecycleState.compact &&
         mode == CapsuleToastMode.expanded) {
       _lifecycle.expand();
@@ -335,6 +381,15 @@ final class CapsuleMotionController extends ChangeNotifier {
     _retargetImmediate(target);
     _ensureTicker();
     _publish();
+  }
+
+  void _resetHoldAndContentReveal() {
+    _holdStarted = false;
+    _holdClock.reset();
+    _contentElapsed = Duration.zero;
+    _contentEnvelopeActive = true;
+    _contentProgress = 0;
+    _contentTravel = Offset.zero;
   }
 
   void _jumpToSeed() {
@@ -659,6 +714,11 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (_lifecycle.state == CapsuleLifecycleState.hidden) {
       return true;
     }
+    if (_dragging || _interactionPaused) {
+      // Keep the ticker alive while the pointer is down so resume does not
+      // depend on recreating a ticker between gesture.up and the next pump.
+      return false;
+    }
     if (!_appearanceComplete || _contentEnvelopeActive) {
       return false;
     }
@@ -668,7 +728,7 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (!_geometry.isSettled) {
       return false;
     }
-    if (_holdStarted && !_interactionPaused) {
+    if (_holdStarted) {
       return false;
     }
     return true;
