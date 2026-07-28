@@ -48,14 +48,11 @@ abstract interface class CapsuleToastHandle {
 final class _CapsuleToastHandle implements CapsuleToastHandle {
   _CapsuleToastHandle({
     required this.id,
-    required int token,
-    required CapsuleToastHandleDelegate delegate,
-    required Future<CapsuleToastResult> closed,
-    required bool Function() isCompleted,
-  }) : _token = token,
-       _delegate = delegate,
-       _closed = closed,
-       _isCompleted = isCompleted;
+    required this._token,
+    required this._delegate,
+    required this._closed,
+    required this._isCompleted,
+  });
 
   @override
   final Object? id;

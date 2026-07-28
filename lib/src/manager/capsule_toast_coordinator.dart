@@ -220,6 +220,10 @@ final class CapsuleToastCoordinator extends ChangeNotifier
 
   void _enqueue(CapsuleToastRecord record) {
     _enforceQueueLimitBeforeAppend();
+    if (_queue.length >= maximumQueueLength) {
+      _completeRecord(record, CapsuleToastDismissReason.queueOverflow);
+      return;
+    }
     _queue.add(record);
   }
 

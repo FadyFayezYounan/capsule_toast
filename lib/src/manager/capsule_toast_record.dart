@@ -37,9 +37,8 @@ final class CapsuleToastRecord {
     required this.token,
     required this.data,
     required this.handle,
-    required Completer<CapsuleToastResult> completer,
-  }) : _completer = completer,
-       desiredMode = data.initialMode,
+    required this._completer,
+  }) : desiredMode = data.initialMode,
        revision = 0,
        dismissalVelocity = 0,
        _unresolved = data.type == CapsuleToastType.loading;
