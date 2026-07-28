@@ -22,6 +22,38 @@ void main() {
     expect(capsuleSize(tester).height, greaterThanOrEqualTo(44));
   });
 
+  testWidgets('reference timestamps have deterministic geometry', (
+    tester,
+  ) async {
+    final ToastTestHarness harness = await pumpToastHarness(
+      tester,
+      CapsuleToastData.information(
+        title: 'Backup ready',
+        message: 'Two files were added.',
+        persistent: true,
+      ),
+      settle: false,
+    );
+    expect(capsuleSize(tester).width, closeTo(84, 0.5));
+    expect(capsuleSize(tester).height, closeTo(34, 0.5));
+
+    await tester.pump(const Duration(milliseconds: 140));
+    expect(capsuleOpacity(tester), closeTo(1, 0.02));
+    expect(capsuleSize(tester).width, greaterThan(84));
+
+    await tester.pump(const Duration(milliseconds: 380));
+    // Width bounce can trail the 520 ms reference window by a short margin.
+    for (int i = 0; i < 6 && !capsuleMotion(tester).isSettled; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+    }
+    expect(capsuleMotion(tester).isSettled, isTrue);
+
+    harness.handle.dismiss();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.binding.transientCallbackCount, 0);
+  });
+
   testWidgets('expand retarget preserves width velocity', (tester) async {
     final ToastTestHarness harness = await pumpToastHarness(
       tester,
