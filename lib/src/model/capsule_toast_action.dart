@@ -30,6 +30,7 @@ class CapsuleToastAction with Diagnosticable {
   /// Whether the toast dismisses after [onPressed] completes.
   final bool dismissOnInvoke;
 
+  /// Adds diagnostic properties for this action.
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
@@ -43,6 +44,10 @@ class CapsuleToastAction with Diagnosticable {
     );
   }
 
+  /// Whether [other] describes the same action configuration as this instance.
+  ///
+  /// [onPressed] is not compared; only [label], [semanticLabel], and
+  /// [dismissOnInvoke] participate in equality.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -57,6 +62,7 @@ class CapsuleToastAction with Diagnosticable {
         other.dismissOnInvoke == dismissOnInvoke;
   }
 
+  /// A hash code derived from [label], [semanticLabel], and [dismissOnInvoke].
   @override
   int get hashCode => Object.hash(label, semanticLabel, dismissOnInvoke);
 }

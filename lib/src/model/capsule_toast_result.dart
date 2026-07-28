@@ -17,6 +17,7 @@ class CapsuleToastResult {
   /// The action selected when [reason] is [CapsuleToastDismissReason.actionSelected].
   final CapsuleToastAction? action;
 
+  /// Whether [other] describes the same dismiss outcome as this instance.
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -30,6 +31,7 @@ class CapsuleToastResult {
         other.action == action;
   }
 
+  /// A hash code derived from [reason] and [action].
   @override
   int get hashCode => Object.hash(reason, action);
 }
