@@ -54,6 +54,7 @@ class CapsuleToastSpring with Diagnosticable {
     );
   }
 
+  /// Describes the properties of this object for debugging.
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
@@ -61,6 +62,7 @@ class CapsuleToastSpring with Diagnosticable {
     properties.add(DoubleProperty('bounce', bounce));
   }
 
+  /// Whether this spring is equal to [other].
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -74,6 +76,7 @@ class CapsuleToastSpring with Diagnosticable {
         other.bounce == bounce;
   }
 
+  /// The hash code for this spring.
   @override
   int get hashCode => Object.hash(duration, bounce);
 }
@@ -323,6 +326,7 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     );
   }
 
+  /// Linearly interpolates between this theme and [other] at [t].
   @override
   CapsuleToastMotionTheme lerp(
     covariant CapsuleToastMotionTheme? other,
@@ -437,6 +441,7 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     );
   }
 
+  /// Describes the properties of this object for debugging.
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
@@ -511,6 +516,7 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     );
   }
 
+  /// Whether this motion theme is equal to [other].
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -542,6 +548,7 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
         other.reducedMotionPolicy == reducedMotionPolicy;
   }
 
+  /// The hash code for this motion theme.
   @override
   int get hashCode => Object.hashAll(<Object?>[
     appearanceDuration,

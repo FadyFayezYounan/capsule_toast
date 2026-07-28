@@ -75,11 +75,13 @@ class CapsuleToastTheme extends InheritedTheme {
     return context.dependOnInheritedWidgetOfExactType<CapsuleToastTheme>();
   }
 
+  /// Whether dependents should be notified when this widget changes.
   @override
   bool updateShouldNotify(covariant CapsuleToastTheme oldWidget) {
     return data != oldWidget.data || motionTheme != oldWidget.motionTheme;
   }
 
+  /// Wraps [child] in a [CapsuleToastTheme] with this scope's data.
   @override
   Widget wrap(BuildContext context, Widget child) {
     return CapsuleToastTheme(

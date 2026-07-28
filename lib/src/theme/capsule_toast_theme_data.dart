@@ -115,6 +115,7 @@ class CapsuleToastAccents with Diagnosticable {
     );
   }
 
+  /// Describes the properties of this object for debugging.
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
@@ -127,6 +128,7 @@ class CapsuleToastAccents with Diagnosticable {
     properties.add(ColorProperty('custom', custom));
   }
 
+  /// Whether these accent colors are equal to [other].
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -145,6 +147,7 @@ class CapsuleToastAccents with Diagnosticable {
         other.custom == custom;
   }
 
+  /// The hash code for these accent colors.
   @override
   int get hashCode => Object.hash(
     success,
@@ -252,6 +255,7 @@ class CapsuleToastTints with Diagnosticable {
     );
   }
 
+  /// Describes the properties of this object for debugging.
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
@@ -264,6 +268,7 @@ class CapsuleToastTints with Diagnosticable {
     properties.add(ColorProperty('custom', custom));
   }
 
+  /// Whether these tint colors are equal to [other].
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -282,6 +287,7 @@ class CapsuleToastTints with Diagnosticable {
         other.custom == custom;
   }
 
+  /// The hash code for these tint colors.
   @override
   int get hashCode => Object.hash(
     success,
@@ -692,6 +698,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     );
   }
 
+  /// Linearly interpolates between this theme and [other] at [t].
   @override
   CapsuleToastThemeData lerp(covariant CapsuleToastThemeData? other, double t) {
     if (other == null) {
@@ -804,6 +811,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     );
   }
 
+  /// Describes the properties of this object for debugging.
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
@@ -914,6 +922,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     properties.add(DoubleProperty('verticalOffset', verticalOffset));
   }
 
+  /// Whether this visual theme is equal to [other].
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) {
@@ -964,6 +973,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         other.verticalOffset == verticalOffset;
   }
 
+  /// The hash code for this visual theme.
   @override
   int get hashCode => Object.hashAll(<Object?>[
     surfaceColor,
