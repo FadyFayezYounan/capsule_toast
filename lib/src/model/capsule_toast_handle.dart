@@ -1,5 +1,7 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
+import 'dart:async';
+
 import 'capsule_toast_data.dart';
 import 'capsule_toast_result.dart';
 
@@ -40,4 +42,81 @@ abstract interface class CapsuleToastHandle {
 
   /// Requests explicit dismissal of this toast when it is active.
   void dismiss();
+}
+
+/// Concrete handle that forwards commands to a [CapsuleToastHandleDelegate].
+final class _CapsuleToastHandle implements CapsuleToastHandle {
+  _CapsuleToastHandle({
+    required this.id,
+    required int token,
+    required CapsuleToastHandleDelegate delegate,
+    required Future<CapsuleToastResult> closed,
+    required bool Function() isCompleted,
+  }) : _token = token,
+       _delegate = delegate,
+       _closed = closed,
+       _isCompleted = isCompleted;
+
+  @override
+  final Object? id;
+
+  final int _token;
+  final CapsuleToastHandleDelegate _delegate;
+  final Future<CapsuleToastResult> _closed;
+  final bool Function() _isCompleted;
+
+  @override
+  Future<CapsuleToastResult> get closed => _closed;
+
+  @override
+  bool get isClosed => _isCompleted();
+
+  @override
+  void expand() {
+    if (isClosed) {
+      return;
+    }
+    _delegate.expand(_token);
+  }
+
+  @override
+  void collapse() {
+    if (isClosed) {
+      return;
+    }
+    _delegate.collapse(_token);
+  }
+
+  @override
+  void resolve(CapsuleToastData toast) {
+    if (isClosed) {
+      return;
+    }
+    _delegate.resolve(_token, toast);
+  }
+
+  @override
+  void dismiss() {
+    if (isClosed) {
+      return;
+    }
+    _delegate.dismiss(_token);
+  }
+}
+
+/// Creates a [CapsuleToastHandle] bound to [token] and [delegate].
+CapsuleToastHandle createCapsuleToastHandle({
+  required Object? id,
+  required int token,
+  required CapsuleToastHandleDelegate delegate,
+  required Future<CapsuleToastResult> closed,
+  required bool Function() isCompleted,
+}) {
+  return _CapsuleToastHandle(
+    id: id,
+    token: token,
+    delegate: delegate,
+    closed: closed,
+    isCompleted: isCompleted,
+  );
 }
