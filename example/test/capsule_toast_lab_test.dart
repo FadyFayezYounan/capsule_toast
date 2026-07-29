@@ -2,12 +2,64 @@
 
 import 'package:capsule_toast/capsule_toast.dart';
 import 'package:capsule_toast_example/capsule_toast_lab.dart';
+import 'package:capsule_toast_example/lab/lab_panel.dart';
 import 'package:capsule_toast_example/lab/lab_phone.dart';
 import 'package:capsule_toast_example/lab/lab_tokens.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('the lab palette uses the cool blue slate treatment', () {
+    expect(Lab.bg, const Color(0xFFEEF3F8));
+    expect(Lab.bgDeep, const Color(0xFFE2EAF2));
+    expect(Lab.card, const Color(0xFFF8FAFC));
+    expect(Lab.cardAlt, const Color(0xFFE6EDF5));
+    expect(Lab.ink, const Color(0xFF172033));
+    expect(Lab.ink2, const Color(0xFF334155));
+    expect(Lab.muted, const Color(0xFF526174));
+    expect(Lab.muted2, const Color(0xFF607086));
+    expect(Lab.amber, const Color(0xFF526FA8));
+    expect(Lab.sage, const Color(0xFF3F8884));
+    expect(Lab.buttonBorder, const Color(0xFF7187A6));
+    expect(Lab.primaryButtonBorder, const Color(0xFF8FA7D4));
+  });
+
+  testWidgets('lab buttons use the new outlined rounded border', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: <Widget>[
+            LabButton(label: 'Secondary', onPressed: () {}),
+            LabButton(label: 'Primary', onPressed: () {}, primary: true),
+          ],
+        ),
+      ),
+    );
+
+    BoxDecoration decorationFor(String label) {
+      final Finder button = find.ancestor(
+        of: find.text(label),
+        matching: find.byType(LabButton),
+      );
+      final Ink ink = tester.widget(
+        find.descendant(of: button, matching: find.byType(Ink)),
+      );
+      return ink.decoration! as BoxDecoration;
+    }
+
+    final BoxDecoration secondary = decorationFor('Secondary');
+    final BoxDecoration primary = decorationFor('Primary');
+
+    expect(secondary.borderRadius, BorderRadius.circular(10));
+    expect(secondary.border, Border.all(color: Lab.buttonBorder, width: 1.5));
+    expect(
+      primary.border,
+      Border.all(color: Lab.primaryButtonBorder, width: 1.5),
+    );
+  });
+
   testWidgets('lab demonstrates statuses queue and loading resolution', (
     WidgetTester tester,
   ) async {

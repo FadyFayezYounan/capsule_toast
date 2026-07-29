@@ -41,9 +41,9 @@ class PanelSection extends StatelessWidget {
   }
 }
 
-/// Pill button used throughout the control panel.
+/// Control button used throughout the control panel.
 class LabButton extends StatelessWidget {
-  /// Creates a pill button labelled [label].
+  /// Creates a control button labelled [label].
   const LabButton({
     super.key,
     required this.label,
@@ -66,18 +66,19 @@ class LabButton extends StatelessWidget {
       height: 36,
       child: Material(
         color: primary ? Lab.ink : Lab.card,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(10),
         elevation: primary ? 1 : 0,
         shadowColor: const Color(0x24000000),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(10),
           child: Ink(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
-              border: primary
-                  ? null
-                  : Border.all(color: Lab.hairline, width: 1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: primary ? Lab.primaryButtonBorder : Lab.buttonBorder,
+                width: 1.5,
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14),
