@@ -1,3 +1,20 @@
+## 0.4.0
+
+Capsule toasts now follow the host application's brightness.
+
+Other changes:
+
+- `CapsuleToastThemeData.fallback` takes an optional `Brightness` selecting the
+  appearance. It defaults to `Brightness.light`, so existing calls are
+  unchanged.
+- `CapsuleToastTheme.resolve` bases its result on `Theme.of(context).brightness`.
+  Overrides from `ThemeData.extensions` and a nearest `CapsuleToastTheme` merge
+  over that base in the same order as before.
+- Added `CapsuleToastThemeData.innerHighlightColor` and
+  `innerHighlightWidth`, the inner rim highlight along the capsule's top curve.
+  The dark appearance sets them; the light appearance leaves them null.
+- Motion, geometry, layout and typography are identical in both appearances.
+
 ## 0.3.0
 
 The capsule toast glyph widget now follows Flutter framework conventions.

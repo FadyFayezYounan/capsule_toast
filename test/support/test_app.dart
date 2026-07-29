@@ -18,13 +18,16 @@ import 'package:capsule_toast/src/widgets/capsule_toast_surface.dart';
 export 'package:capsule_toast/src/motion/capsule_motion_controller.dart'
     show CapsuleMotionController, CapsuleMotionSnapshot;
 export 'package:capsule_toast/src/widgets/capsule_toast_surface.dart'
-    show capsuleSurfaceKey;
+    show capsuleHighlightKey, capsuleSurfaceKey;
 
 /// No-op action callback for const test fixtures.
 void noop() {}
 
 /// Brand-neutral canvas behind golden toast boards.
 const Color goldenCanvasColor = Color(0xFFE4E5E8);
+
+/// Reference dark application background behind dark golden boards.
+const Color goldenDarkCanvasColor = Color(0xFF20201E);
 
 /// Logical golden surface size matching a common phone viewport.
 const Size goldenSurfaceSize = Size(390, 844);
@@ -87,6 +90,7 @@ Future<BuildContext> pumpToast(
   WidgetTester tester,
   CapsuleToastData toast, {
   bool settle = true,
+  Brightness brightness = Brightness.light,
   TextDirection textDirection = TextDirection.ltr,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
@@ -95,6 +99,7 @@ Future<BuildContext> pumpToast(
   late BuildContext commandContext;
   await tester.pumpWidget(
     MaterialApp(
+      theme: ThemeData(brightness: brightness),
       builder: (BuildContext context, Widget? child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
@@ -137,6 +142,7 @@ Future<ToastTestHarness> pumpToastHarness(
   WidgetTester tester,
   CapsuleToastData toast, {
   bool settle = true,
+  Brightness brightness = Brightness.light,
   bool disableAnimations = false,
   TextDirection textDirection = TextDirection.ltr,
   TextScaler textScaler = TextScaler.noScaling,
@@ -145,6 +151,7 @@ Future<ToastTestHarness> pumpToastHarness(
     tester,
     toast,
     settle: settle,
+    brightness: brightness,
     disableAnimations: disableAnimations,
     textDirection: textDirection,
     textScaler: textScaler,
@@ -166,12 +173,20 @@ Future<void> pumpGoldenGrid(
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
   Size? seedClipSize,
+  Brightness brightness = Brightness.light,
 }) async {
   configureGoldenSurface(tester);
+  final Color canvas = brightness == Brightness.dark
+      ? goldenDarkCanvasColor
+      : goldenCanvasColor;
   await tester.pumpWidget(
     MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(fontFamily: 'FlutterTest', useMaterial3: true),
+      theme: ThemeData(
+        fontFamily: 'FlutterTest',
+        brightness: brightness,
+        useMaterial3: true,
+      ),
       home: MediaQuery(
         data: MediaQueryData(
           size: goldenSurfaceSize,
@@ -184,7 +199,7 @@ Future<void> pumpGoldenGrid(
           child: TickerMode(
             enabled: false,
             child: ColoredBox(
-              color: goldenCanvasColor,
+              color: canvas,
               child: OverflowBox(
                 alignment: Alignment.topCenter,
                 minWidth: goldenSurfaceSize.width,
@@ -194,13 +209,14 @@ Future<void> pumpGoldenGrid(
                 child: RepaintBoundary(
                   key: goldenBoundaryKey,
                   child: ColoredBox(
-                    color: goldenCanvasColor,
+                    color: canvas,
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(24, 32, 24, 32),
                       child: _GoldenToastBoard(
                         toasts: toasts,
                         seedClipSize: seedClipSize,
                         reducedMotion: disableAnimations,
+                        brightness: brightness,
                       ),
                     ),
                   ),
@@ -254,11 +270,13 @@ class _GoldenToastBoard extends StatefulWidget {
     required this.toasts,
     this.seedClipSize,
     this.reducedMotion = false,
+    this.brightness = Brightness.light,
   });
 
   final List<CapsuleToastData> toasts;
   final Size? seedClipSize;
   final bool reducedMotion;
+  final Brightness brightness;
 
   @override
   State<_GoldenToastBoard> createState() => _GoldenToastBoardState();
@@ -298,7 +316,9 @@ class _GoldenToastBoardState extends State<_GoldenToastBoard>
 
   @override
   Widget build(BuildContext context) {
-    final CapsuleToastThemeData visualTheme = CapsuleToastThemeData.fallback();
+    final CapsuleToastThemeData visualTheme = CapsuleToastThemeData.fallback(
+      widget.brightness,
+    );
     final CapsuleToastMotionTheme motionTheme =
         CapsuleToastMotionTheme.fallback();
 

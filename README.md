@@ -171,6 +171,54 @@ CapsuleToastTheme(
 
 Fonts inherit from the application — this package does not bundle typefaces.
 
+## Dark mode
+
+The capsule ships two appearances and picks one from the host application's
+brightness, so an app with both `theme:` and `darkTheme:` needs no
+package-specific configuration:
+
+```dart
+MaterialApp(
+  theme: ThemeData(brightness: Brightness.light),
+  darkTheme: ThemeData(brightness: Brightness.dark),
+  builder: (BuildContext context, Widget? child) {
+    return CapsuleToastHost(child: child!);
+  },
+  home: const HomePage(),
+);
+```
+
+In a light app the capsule is a near-black overlay that sits below the app
+surface. In a dark app that would sink into the background, so the dark
+appearance lifts one step above it instead, with a brighter rim and stronger
+status tints. Geometry, timings and springs are shared.
+
+Customise one appearance by registering an extension on that `ThemeData` —
+anything you leave out still comes from the matching built-in appearance:
+
+```dart
+ThemeData(
+  brightness: Brightness.dark,
+  extensions: <ThemeExtension<dynamic>>[
+    CapsuleToastThemeData(
+      surfaceColor: const Color(0xFF2A2622),
+      innerHighlightColor: const Color(0x1FFFFFFF),
+    ),
+  ],
+);
+```
+
+Pin one appearance regardless of the app by registering a whole fallback:
+
+```dart
+ThemeData(
+  brightness: Brightness.dark,
+  extensions: <ThemeExtension<dynamic>>[
+    CapsuleToastThemeData.fallback(Brightness.light),
+  ],
+);
+```
+
 ## Motion theme
 
 ```dart

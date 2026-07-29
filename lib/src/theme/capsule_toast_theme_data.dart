@@ -300,6 +300,136 @@ class CapsuleToastTints with Diagnosticable {
   );
 }
 
+/// The capsule tokens that vary with the host application's brightness.
+///
+/// The reference prototype keeps geometry, typography, springs and status
+/// accents shared between appearances, and moves only the surface, its rim, its
+/// shadow, and the alpha of the status tints. Those are the values collected
+/// here, so the two appearances are two short tables rather than two copies of
+/// the whole fallback.
+@immutable
+class _CapsuleToastPalette {
+  const _CapsuleToastPalette({
+    required this.surface,
+    required this.foreground,
+    required this.secondaryForeground,
+    required this.border,
+    required this.actionSurface,
+    required this.onForeground,
+    required this.tints,
+    required this.shadows,
+    this.innerHighlight,
+    this.innerHighlightWidth,
+  });
+
+  /// Tuned for a light application: a near-black system overlay at maximum
+  /// contrast against the warm off-white app surface.
+  static const _CapsuleToastPalette light = _CapsuleToastPalette(
+    surface: Color(0xFF161614),
+    foreground: Color(0xFFF9F9F7),
+    secondaryForeground: Color(0x9EF9F9F7),
+    border: Color(0x12F9F9F7),
+    actionSurface: Color(0x1AF9F9F7),
+    onForeground: Color(0xFF1A1714),
+    tints: CapsuleToastTints(
+      success: Color(0x2995A584),
+      information: Color(0x298AA4BD),
+      warning: Color(0x29D89858),
+      error: Color(0x2ED67D65),
+      loading: Color(0x14F9F9F7),
+      neutral: Color(0x14F9F9F7),
+      custom: Color(0x14F9F9F7),
+    ),
+    // The reference casts `0 2px 6px` and `0 10px 30px`. CSS defines its
+    // blur radius as twice the Gaussian sigma, while Flutter's is
+    // `0.57735 * radius + 0.5`, so copying the CSS numbers across
+    // over-blurs by roughly a third. These are the radii that land on the
+    // same sigma.
+    shadows: <BoxShadow>[
+      BoxShadow(offset: Offset(0, 2), blurRadius: 4.33, color: _shadowColor),
+      BoxShadow(offset: Offset(0, 10), blurRadius: 25.1, color: _shadowColor),
+    ],
+  );
+
+  /// Tuned for a dark application. Near-black would sink into the background,
+  /// so this lifts one step *above* the app surface, trades the warm ambient
+  /// shadow for a brighter rim plus an inner top highlight, and boosts tint
+  /// alpha by 1.35 so status reads at the same strength on the lighter fill.
+  static const _CapsuleToastPalette dark = _CapsuleToastPalette(
+    surface: Color(0xFF26231E),
+    foreground: Color(0xFFF7F4EE),
+    secondaryForeground: Color(0xA8F7F4EE),
+    border: Color(0x26F9F6F0),
+    actionSurface: Color(0x21F9F6F0),
+    onForeground: Color(0xFF211E19),
+    innerHighlight: Color(0x1AFFFFFF),
+    innerHighlightWidth: 0.5,
+    tints: CapsuleToastTints(
+      success: Color(0x3795A584),
+      information: Color(0x378AA4BD),
+      warning: Color(0x37D89858),
+      error: Color(0x3ED67D65),
+      loading: Color(0x1CF9F9F7),
+      neutral: Color(0x1CF9F9F7),
+      custom: Color(0x1CF9F9F7),
+    ),
+    // `0 2px 8px rgba(0,0,0,0.46)` and `0 14px 36px rgba(0,0,0,0.42)`, through
+    // the same CSS-blur-to-sigma conversion as the light palette.
+    shadows: <BoxShadow>[
+      BoxShadow(
+        offset: Offset(0, 2),
+        blurRadius: 6.06,
+        color: Color(0x75000000),
+      ),
+      BoxShadow(
+        offset: Offset(0, 14),
+        blurRadius: 30.31,
+        color: Color(0x6B000000),
+      ),
+    ],
+  );
+
+  static const Color _shadowColor = Color.fromRGBO(20, 14, 6, 0.16);
+
+  /// Returns the palette for a host application of the given [brightness].
+  static _CapsuleToastPalette of(Brightness brightness) {
+    return switch (brightness) {
+      Brightness.light => light,
+      Brightness.dark => dark,
+    };
+  }
+
+  /// Capsule surface fill.
+  final Color surface;
+
+  /// Primary content colour.
+  final Color foreground;
+
+  /// Secondary content colour.
+  final Color secondaryForeground;
+
+  /// Rim stroke colour.
+  final Color border;
+
+  /// Action chip surface.
+  final Color actionSurface;
+
+  /// Content colour on top of a [foreground] fill.
+  final Color onForeground;
+
+  /// Inner top rim highlight, or `null` when the appearance has none.
+  final Color? innerHighlight;
+
+  /// Thickness of the inner top rim highlight.
+  final double? innerHighlightWidth;
+
+  /// Semantic surface tints, already carrying this appearance's tint boost.
+  final CapsuleToastTints tints;
+
+  /// Drop shadows behind the capsule.
+  final List<BoxShadow> shadows;
+}
+
 /// Visual styling tokens for capsule toasts.
 @immutable
 class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
@@ -312,6 +442,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     this.borderColor,
     this.borderWidth,
     this.actionSurfaceColor,
+    this.innerHighlightColor,
+    this.innerHighlightWidth,
     this.accents,
     this.tints,
     List<BoxShadow>? shadows,
@@ -348,6 +480,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     this.verticalOffset,
   }) : shadows = shadows == null ? null : List<BoxShadow>.unmodifiable(shadows),
        assert(borderWidth == null || borderWidth >= 0),
+       assert(innerHighlightWidth == null || innerHighlightWidth >= 0),
        assert(
          compactPadding == null || compactPadding.isNonNegative,
          'CapsuleToastThemeData.compactPadding must be non-negative.',
@@ -387,17 +520,37 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
          'CapsuleToastThemeData.secondaryActionPadding must be non-negative.',
        );
 
-  static const Color _shadowColor = Color.fromRGBO(20, 14, 6, 0.16);
-
   /// Reference visual values for capsule toasts.
-  factory CapsuleToastThemeData.fallback() {
+  ///
+  /// [brightness] is the *host application's* brightness, matching
+  /// `Theme.of(context).brightness`. `Brightness.light` returns the near-black
+  /// capsule tuned to sit on a light app; `Brightness.dark` returns the lifted
+  /// capsule tuned to sit on a dark one. Geometry, typography, motion and
+  /// status accents are identical either way.
+  ///
+  /// Because the returned theme is fully populated, installing one as a
+  /// `ThemeData` extension pins that appearance regardless of the app:
+  ///
+  /// ```dart
+  /// ThemeData.dark().copyWith(
+  ///   extensions: <ThemeExtension<dynamic>>[
+  ///     CapsuleToastThemeData.fallback(Brightness.light),
+  ///   ],
+  /// )
+  /// ```
+  factory CapsuleToastThemeData.fallback([
+    Brightness brightness = Brightness.light,
+  ]) {
+    final _CapsuleToastPalette palette = _CapsuleToastPalette.of(brightness);
     return CapsuleToastThemeData(
-      surfaceColor: const Color(0xFF161614),
-      foregroundColor: const Color(0xFFF9F9F7),
-      secondaryForegroundColor: const Color(0x9EF9F9F7),
-      borderColor: const Color(0x12F9F9F7),
+      surfaceColor: palette.surface,
+      foregroundColor: palette.foreground,
+      secondaryForegroundColor: palette.secondaryForeground,
+      borderColor: palette.border,
       borderWidth: 0.5,
-      actionSurfaceColor: const Color(0x1AF9F9F7),
+      actionSurfaceColor: palette.actionSurface,
+      innerHighlightColor: palette.innerHighlight,
+      innerHighlightWidth: palette.innerHighlightWidth,
       accents: const CapsuleToastAccents(
         success: Color(0xFFB9CCA8),
         information: Color(0xFFAFC4D7),
@@ -407,24 +560,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         neutral: Color(0xC7F9F9F7),
         custom: Color(0xC7F9F9F7),
       ),
-      tints: const CapsuleToastTints(
-        success: Color(0x2995A584),
-        information: Color(0x298AA4BD),
-        warning: Color(0x29D89858),
-        error: Color(0x2ED67D65),
-        loading: Color(0x14F9F9F7),
-        neutral: Color(0x14F9F9F7),
-        custom: Color(0x14F9F9F7),
-      ),
-      // The reference casts `0 2px 6px` and `0 10px 30px`. CSS defines its
-      // blur radius as twice the Gaussian sigma, while Flutter's is
-      // `0.57735 * radius + 0.5`, so copying the CSS numbers across
-      // over-blurs by roughly a third. These are the radii that land on the
-      // same sigma.
-      shadows: const <BoxShadow>[
-        BoxShadow(offset: Offset(0, 2), blurRadius: 4.33, color: _shadowColor),
-        BoxShadow(offset: Offset(0, 10), blurRadius: 25.1, color: _shadowColor),
-      ],
+      tints: palette.tints,
+      shadows: palette.shadows,
       titleTextStyle: const TextStyle(
         fontSize: 13.5,
         fontWeight: FontWeight.w600,
@@ -474,41 +611,43 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         horizontal: 12,
       ),
       // The compact chip reads as a quiet affordance, the expanded primary as
-      // a solid light pill on the dark capsule, and the secondary as bare text.
+      // a solid pill in the content colour, and the secondary as bare text.
       // The colour has to be stated here, not left to the ambient text style:
       // toast content inherits the host app's `bodyMedium`, which in a light
       // theme is near-black and disappears against the capsule.
-      compactActionStyle: const ButtonStyle(
-        foregroundColor: WidgetStatePropertyAll<Color>(Color(0xFFF9F9F7)),
+      compactActionStyle: ButtonStyle(
+        foregroundColor: WidgetStatePropertyAll<Color>(palette.foreground),
         textStyle: WidgetStatePropertyAll<TextStyle>(
           TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w600,
-            color: Color(0xFFF9F9F7),
+            color: palette.foreground,
           ),
         ),
       ),
-      primaryActionStyle: const ButtonStyle(
-        backgroundColor: WidgetStatePropertyAll<Color>(Color(0xFFF9F9F7)),
-        foregroundColor: WidgetStatePropertyAll<Color>(Color(0xFF1A1714)),
+      primaryActionStyle: ButtonStyle(
+        backgroundColor: WidgetStatePropertyAll<Color>(palette.foreground),
+        foregroundColor: WidgetStatePropertyAll<Color>(palette.onForeground),
         textStyle: WidgetStatePropertyAll<TextStyle>(
           TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
-            color: Color(0xFF1A1714),
+            color: palette.onForeground,
           ),
         ),
       ),
-      secondaryActionStyle: const ButtonStyle(
-        backgroundColor: WidgetStatePropertyAll<Color>(Color(0x00000000)),
-        foregroundColor: WidgetStatePropertyAll<Color>(Color(0x9EF9F9F7)),
+      secondaryActionStyle: ButtonStyle(
+        backgroundColor: const WidgetStatePropertyAll<Color>(Color(0x00000000)),
+        foregroundColor: WidgetStatePropertyAll<Color>(
+          palette.secondaryForeground,
+        ),
         textStyle: WidgetStatePropertyAll<TextStyle>(
           TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
             letterSpacing: -0.1,
-            color: Color(0x9EF9F9F7),
+            color: palette.secondaryForeground,
           ),
         ),
       ),
@@ -534,6 +673,19 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
 
   /// Action button surface color.
   final Color? actionSurfaceColor;
+
+  /// Inner rim highlight painted along the capsule's top curve.
+  ///
+  /// The reference dark appearance lifts the capsule above the app surface with
+  /// `inset 0 0.5px 0 rgba(255,255,255,0.10)`. [BoxDecoration] has no inset
+  /// shadow, so the surface paints this itself. Leave `null` for no highlight —
+  /// which is what the light appearance does.
+  final Color? innerHighlightColor;
+
+  /// Thickness of the inner rim highlight.
+  ///
+  /// Falls back to [borderWidth] when null and [innerHighlightColor] is set.
+  final double? innerHighlightWidth;
 
   /// Semantic accent colors.
   final CapsuleToastAccents? accents;
@@ -648,6 +800,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     Color? borderColor,
     double? borderWidth,
     Color? actionSurfaceColor,
+    Color? innerHighlightColor,
+    double? innerHighlightWidth,
     CapsuleToastAccents? accents,
     CapsuleToastTints? tints,
     List<BoxShadow>? shadows,
@@ -691,6 +845,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       borderColor: borderColor ?? this.borderColor,
       borderWidth: borderWidth ?? this.borderWidth,
       actionSurfaceColor: actionSurfaceColor ?? this.actionSurfaceColor,
+      innerHighlightColor: innerHighlightColor ?? this.innerHighlightColor,
+      innerHighlightWidth: innerHighlightWidth ?? this.innerHighlightWidth,
       accents: accents ?? this.accents,
       tints: tints ?? this.tints,
       shadows: shadows ?? this.shadows,
@@ -744,6 +900,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       borderColor: other.borderColor ?? borderColor,
       borderWidth: other.borderWidth ?? borderWidth,
       actionSurfaceColor: other.actionSurfaceColor ?? actionSurfaceColor,
+      innerHighlightColor: other.innerHighlightColor ?? innerHighlightColor,
+      innerHighlightWidth: other.innerHighlightWidth ?? innerHighlightWidth,
       accents: other.accents ?? accents,
       tints: other.tints ?? tints,
       shadows: other.shadows ?? shadows,
@@ -803,6 +961,16 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
       actionSurfaceColor: Color.lerp(
         actionSurfaceColor,
         other.actionSurfaceColor,
+        t,
+      ),
+      innerHighlightColor: Color.lerp(
+        innerHighlightColor,
+        other.innerHighlightColor,
+        t,
+      ),
+      innerHighlightWidth: lerpDouble(
+        innerHighlightWidth,
+        other.innerHighlightWidth,
         t,
       ),
       accents: CapsuleToastAccents.lerp(accents, other.accents, t),
@@ -914,6 +1082,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     properties.add(ColorProperty('borderColor', borderColor));
     properties.add(DoubleProperty('borderWidth', borderWidth));
     properties.add(ColorProperty('actionSurfaceColor', actionSurfaceColor));
+    properties.add(ColorProperty('innerHighlightColor', innerHighlightColor));
+    properties.add(DoubleProperty('innerHighlightWidth', innerHighlightWidth));
     properties.add(
       DiagnosticsProperty<CapsuleToastAccents?>('accents', accents),
     );
@@ -1035,6 +1205,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
         other.borderColor == borderColor &&
         other.borderWidth == borderWidth &&
         other.actionSurfaceColor == actionSurfaceColor &&
+        other.innerHighlightColor == innerHighlightColor &&
+        other.innerHighlightWidth == innerHighlightWidth &&
         other.accents == accents &&
         other.tints == tints &&
         _listEquals(other.shadows, shadows) &&
@@ -1080,6 +1252,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     borderColor,
     borderWidth,
     actionSurfaceColor,
+    innerHighlightColor,
+    innerHighlightWidth,
     accents,
     tints,
     shadows == null ? null : Object.hashAll(shadows!),

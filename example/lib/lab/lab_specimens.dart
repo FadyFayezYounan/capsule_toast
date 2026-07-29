@@ -11,11 +11,18 @@ import 'lab_variants.dart';
 /// [CapsuleToastThemeData.fallback] so a specimen and a live toast cannot drift
 /// apart.
 abstract final class LabSpecimens {
-  static CapsuleToastThemeData get _theme => CapsuleToastThemeData.fallback();
+  static CapsuleToastThemeData _themeFor(Brightness brightness) =>
+      CapsuleToastThemeData.fallback(brightness);
 
   /// Leading icon disc for [type].
-  static Widget icon(CapsuleToastType type, {bool spinning = false}) {
-    final CapsuleToastThemeData theme = _theme;
+  ///
+  /// [brightness] selects the capsule appearance, matching the phone.
+  static Widget icon(
+    CapsuleToastType type, {
+    bool spinning = false,
+    Brightness brightness = Brightness.light,
+  }) {
+    final CapsuleToastThemeData theme = _themeFor(brightness);
     final double size = theme.compactIconSize!;
     return Container(
       width: size,
@@ -38,8 +45,10 @@ abstract final class LabSpecimens {
   }
 
   /// The 84×34 seed capsule interior — a single accent dot.
-  static Widget seed() {
-    final CapsuleToastThemeData theme = _theme;
+  ///
+  /// [brightness] selects the capsule appearance, matching the phone.
+  static Widget seed({Brightness brightness = Brightness.light}) {
+    final CapsuleToastThemeData theme = _themeFor(brightness);
     return SizedBox(
       width: theme.seedSize!.width,
       height: theme.seedSize!.height,
@@ -57,14 +66,17 @@ abstract final class LabSpecimens {
   }
 
   /// Compact interior: icon, truncating title, optional chip.
+  ///
+  /// [brightness] selects the capsule appearance, matching the phone.
   static Widget compact({
     required CapsuleToastType type,
     required String title,
     String? chipLabel,
     bool spinning = false,
     TextDirection direction = TextDirection.ltr,
+    Brightness brightness = Brightness.light,
   }) {
-    final CapsuleToastThemeData theme = _theme;
+    final CapsuleToastThemeData theme = _themeFor(brightness);
     return Directionality(
       textDirection: direction,
       child: Padding(
@@ -77,7 +89,7 @@ abstract final class LabSpecimens {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              icon(type, spinning: spinning),
+              icon(type, spinning: spinning, brightness: brightness),
               SizedBox(width: theme.compactSpacing),
               Flexible(
                 child: ConstrainedBox(
@@ -124,12 +136,15 @@ abstract final class LabSpecimens {
   }
 
   /// Expanded interior: icon, title, supporting line, action row.
+  ///
+  /// [brightness] selects the capsule appearance, matching the phone.
   static Widget expanded({
     required CapsuleToastType type,
     required LabCopy copy,
     TextDirection direction = TextDirection.ltr,
+    Brightness brightness = Brightness.light,
   }) {
-    final CapsuleToastThemeData theme = _theme;
+    final CapsuleToastThemeData theme = _themeFor(brightness);
     return Directionality(
       textDirection: direction,
       child: ConstrainedBox(
@@ -140,7 +155,7 @@ abstract final class LabSpecimens {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              icon(type),
+              icon(type, brightness: brightness),
               SizedBox(width: theme.expandedSpacing),
               Flexible(
                 child: Column(
@@ -171,7 +186,13 @@ abstract final class LabSpecimens {
                           _pill(
                             label: copy.action!,
                             background: theme.foregroundColor!,
-                            foreground: const Color(0xFF1A1714),
+                            // Read from the theme rather than hardcoded: the
+                            // colour on top of the foreground pill differs
+                            // between appearances.
+                            foreground: theme
+                                .primaryActionStyle!
+                                .foregroundColor!
+                                .resolve(<WidgetState>{})!,
                             weight: FontWeight.w600,
                             padding: theme.primaryActionPadding!,
                             height: theme.expandedActionHeight!,

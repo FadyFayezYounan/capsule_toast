@@ -514,6 +514,7 @@ class LabSpecimen extends StatelessWidget {
     required this.dimensions,
     required this.child,
     this.width,
+    this.brightness = Brightness.light,
   });
 
   /// Specimen name.
@@ -528,9 +529,14 @@ class LabSpecimen extends StatelessWidget {
   /// Fixed capsule width, when the specimen is not content-driven.
   final double? width;
 
+  /// Capsule appearance, matching the phone.
+  final Brightness brightness;
+
   @override
   Widget build(BuildContext context) {
-    final CapsuleToastThemeData theme = CapsuleToastThemeData.fallback();
+    final CapsuleToastThemeData theme = CapsuleToastThemeData.fallback(
+      brightness,
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -555,7 +561,7 @@ class LabSpecimen extends StatelessWidget {
           width: double.infinity,
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Lab.bgDeep,
+            color: brightness == Brightness.dark ? Lab.darkBg : Lab.bgDeep,
             borderRadius: BorderRadius.circular(16),
           ),
           child: Center(

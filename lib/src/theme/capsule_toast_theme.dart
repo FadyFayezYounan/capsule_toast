@@ -39,11 +39,19 @@ class CapsuleToastTheme extends InheritedTheme {
   }
 
   /// Resolves visual theme from defaults, extensions, and inherited scope.
+  ///
+  /// The base is chosen from the host application's brightness, so a
+  /// `MaterialApp` with both `theme:` and `darkTheme:` gets the matching
+  /// capsule appearance with no package-specific configuration. Overrides are
+  /// then merged over that base in the usual order: `ThemeData` extension
+  /// first, nearest [CapsuleToastTheme] last.
   static CapsuleToastThemeData resolve(BuildContext context) {
-    CapsuleToastThemeData resolved = CapsuleToastThemeData.fallback();
-    final CapsuleToastThemeData? extension = Theme.of(
-      context,
-    ).extension<CapsuleToastThemeData>();
+    final ThemeData theme = Theme.of(context);
+    CapsuleToastThemeData resolved = CapsuleToastThemeData.fallback(
+      theme.brightness,
+    );
+    final CapsuleToastThemeData? extension = theme
+        .extension<CapsuleToastThemeData>();
     if (extension != null) {
       resolved = resolved.merge(extension);
     }
