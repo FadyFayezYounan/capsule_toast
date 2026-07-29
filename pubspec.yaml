@@ -1,7 +1,7 @@
 name: capsule_toast
 description: >-
   A reusable, brand-neutral Flutter package for morphing capsule notifications.
-version: 0.1.0
+version: 0.3.0
 homepage: https://github.com/FadyFayezYounan/capsule_toast
 repository: https://github.com/FadyFayezYounan/capsule_toast
 

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../model/capsule_toast_types.dart';
+import '../motion/capsule_easing.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 
 /// Inherited animation inputs for [CapsuleToastAnimatedSlot].
@@ -18,7 +19,7 @@ class CapsuleToastAnimationScope extends InheritedWidget {
     required this.motionTheme,
     required this.textDirection,
     required this.capsuleSize,
-    required this.capsuleBodyKey,
+    required this.iconTravel,
     required super.child,
   });
 
@@ -37,11 +38,16 @@ class CapsuleToastAnimationScope extends InheritedWidget {
   /// Resolved text direction used to mirror inline travel.
   final TextDirection textDirection;
 
-  /// Live capsule size used for icon center travel.
+  /// Live capsule size.
   final Size capsuleSize;
 
-  /// Key identifying the capsule body coordinate space.
-  final GlobalKey capsuleBodyKey;
+  /// Horizontal distance the leading icon travels from the capsule centre to
+  /// its resting position, signed for the resolved [textDirection].
+  ///
+  /// The icon is the one slot that does not simply slide in: it appears at the
+  /// centre of the seed capsule and rides outward as the capsule widens, so
+  /// this is derived from the measured target width rather than the live size.
+  final double iconTravel;
 
   /// Returns the nearest animation scope, or asserts when absent.
   static CapsuleToastAnimationScope of(BuildContext context) {
@@ -67,7 +73,8 @@ class CapsuleToastAnimationScope extends InheritedWidget {
         reducedMotion != oldWidget.reducedMotion ||
         motionTheme != oldWidget.motionTheme ||
         textDirection != oldWidget.textDirection ||
-        capsuleSize != oldWidget.capsuleSize;
+        capsuleSize != oldWidget.capsuleSize ||
+        iconTravel != oldWidget.iconTravel;
   }
 }
 
@@ -97,13 +104,9 @@ class CapsuleToastAnimatedSlot extends StatelessWidget {
         CapsuleToastSlot.action: Duration(milliseconds: 90),
       };
 
-  static const Map<CapsuleToastSlot, Duration> _exitDelays =
-      <CapsuleToastSlot, Duration>{
-        CapsuleToastSlot.action: Duration.zero,
-        CapsuleToastSlot.message: Duration(milliseconds: 40),
-        CapsuleToastSlot.title: Duration(milliseconds: 90),
-        CapsuleToastSlot.icon: Duration(milliseconds: 100),
-      };
+  /// Opacity reaches full at 62.5% of the icon's travel, so the glyph is solid
+  /// before it finishes sliding out of the centre.
+  static const double _iconOpacityLead = 0.625;
 
   @override
   Widget build(BuildContext context) {
@@ -113,17 +116,27 @@ class CapsuleToastAnimatedSlot extends StatelessWidget {
       return child;
     }
 
+    // Already eased — the envelope curve is applied inside _slotProgress so
+    // reveal and retract stay mirror images of each other.
     final double progress = _slotProgress(scope);
     if (scope.reducedMotion) {
-      return Opacity(opacity: progress.clamp(0.0, 1.0), child: child);
+      return Opacity(opacity: progress, child: child);
     }
 
     if (slot == CapsuleToastSlot.icon) {
-      return _IconSlotMotion(progress: progress, scope: scope, child: child);
+      return Transform.translate(
+        offset: Offset(scope.iconTravel * (1 - progress), 0),
+        child: Transform.scale(
+          scale: 0.92 + 0.08 * progress,
+          child: Opacity(
+            opacity: (progress / _iconOpacityLead).clamp(0.0, 1.0),
+            child: child,
+          ),
+        ),
+      );
     }
 
-    final double curved = Curves.easeOut.transform(progress.clamp(0.0, 1.0));
-    final double remaining = 1 - curved;
+    final double remaining = 1 - progress;
     final double inlineSign = scope.textDirection == TextDirection.rtl
         ? -1.0
         : 1.0;
@@ -145,132 +158,39 @@ class CapsuleToastAnimatedSlot extends StatelessWidget {
 
     return Transform.translate(
       offset: travel,
-      child: Opacity(opacity: curved, child: child),
+      child: Opacity(opacity: progress, child: child),
     );
   }
 
+  /// Eased reveal progress for this slot, in `[0, 1]`.
   double _slotProgress(CapsuleToastAnimationScope scope) {
     final Duration delay = scope.revealing
         ? (scope.motionTheme.slotDelays?[slot] ?? _defaultEnterDelays[slot]!)
-        : _exitDelays[slot]!;
+        : capsuleToastRetractDelays[slot]!;
     final Duration interval = scope.revealing
         ? (scope.motionTheme.slotRevealDuration ??
               const Duration(milliseconds: 220))
         : (scope.reducedMotion
-              ? const Duration(milliseconds: 100)
-              : const Duration(milliseconds: 130));
+              ? capsuleToastReducedRetractInterval
+              : capsuleToastRetractInterval);
     final int localMicros =
         scope.contentElapsed.inMicroseconds - delay.inMicroseconds;
     if (scope.revealing) {
       if (localMicros <= 0) {
         return 0;
       }
-      return (localMicros / interval.inMicroseconds).clamp(0.0, 1.0);
+      return capsuleEaseOutAt(localMicros / interval.inMicroseconds);
     }
     if (localMicros <= 0) {
       return 1;
     }
-    final double t = (localMicros / interval.inMicroseconds).clamp(0.0, 1.0);
-    return 1 - t;
+    // Retract mirrors the reveal: `1 - easeOut(t)`, never `easeOut(1 - t)`.
+    return 1 - capsuleEaseOutAt(localMicros / interval.inMicroseconds);
   }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties.add(EnumProperty<CapsuleToastSlot>('slot', slot));
-  }
-}
-
-class _IconSlotMotion extends StatefulWidget {
-  const _IconSlotMotion({
-    required this.progress,
-    required this.scope,
-    required this.child,
-  });
-
-  final double progress;
-  final CapsuleToastAnimationScope scope;
-  final Widget child;
-
-  @override
-  State<_IconSlotMotion> createState() => _IconSlotMotionState();
-}
-
-class _IconSlotMotionState extends State<_IconSlotMotion> {
-  Offset _restFromCenter = Offset.zero;
-  bool _restCaptured = false;
-
-  @override
-  void didUpdateWidget(covariant _IconSlotMotion oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.scope.capsuleSize != widget.scope.capsuleSize) {
-      _restCaptured = false;
-    }
-  }
-
-  void _captureRest(BuildContext measureContext) {
-    if (widget.progress < 1) {
-      return;
-    }
-    final RenderBox? iconBox = measureContext.findRenderObject() as RenderBox?;
-    final RenderBox? capsuleBox =
-        widget.scope.capsuleBodyKey.currentContext?.findRenderObject()
-            as RenderBox?;
-    if (iconBox == null ||
-        capsuleBox == null ||
-        !iconBox.hasSize ||
-        !capsuleBox.hasSize) {
-      return;
-    }
-    final Offset iconCenter = iconBox.localToGlobal(
-      iconBox.size.center(Offset.zero),
-      ancestor: capsuleBox,
-    );
-    final Offset capsuleCenter = capsuleBox.size.center(Offset.zero);
-    final Offset next = iconCenter - capsuleCenter;
-    if (_restCaptured && (next - _restFromCenter).distance < 0.5) {
-      return;
-    }
-    setState(() {
-      _restFromCenter = next;
-      _restCaptured = true;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final double t = widget.progress.clamp(0.0, 1.0);
-    final double curved = Curves.easeOut.transform(t);
-    final double opacity = (t / 0.625).clamp(0.0, 1.0);
-    final double scale = 0.92 + 0.08 * curved;
-    final double inlineSign = widget.scope.textDirection == TextDirection.rtl
-        ? -1.0
-        : 1.0;
-    final Offset travel = _restCaptured
-        ? -_restFromCenter * (1 - curved)
-        : Offset(
-            inlineSign * widget.scope.capsuleSize.width * 0.22 * (1 - curved),
-            0,
-          );
-
-    return Transform.translate(
-      offset: travel,
-      child: Transform.scale(
-        scale: scale,
-        child: Opacity(
-          opacity: opacity,
-          child: Builder(
-            builder: (BuildContext measureContext) {
-              WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-                if (mounted) {
-                  _captureRest(measureContext);
-                }
-              });
-              return widget.child;
-            },
-          ),
-        ),
-      ),
-    );
   }
 }

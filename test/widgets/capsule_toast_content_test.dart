@@ -28,6 +28,45 @@ void main() {
     expect(CapsuleToastHost.of(context).queueLength, 0);
   });
 
+  testWidgets('compact action label is legible against the capsule', (
+    WidgetTester tester,
+  ) async {
+    // A light host theme is the trap: without an explicit colour the chip
+    // label inherits `bodyMedium`, which is near-black on the dark capsule.
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(brightness: Brightness.light),
+        builder: (BuildContext context, Widget? child) =>
+            CapsuleToastHost(child: child!),
+        home: Builder(
+          builder: (BuildContext context) {
+            return ElevatedButton(
+              onPressed: () => CapsuleToastHost.of(context).show(
+                CapsuleToastData.success(
+                  title: 'Saved',
+                  compactAction: CapsuleToastAction(
+                    label: 'Undo',
+                    onPressed: noop,
+                  ),
+                ),
+              ),
+              child: const Text('show'),
+            );
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('show'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 520));
+
+    final Text label = tester.widget<Text>(find.text('Undo'));
+    final TextStyle resolved = DefaultTextStyle.of(
+      tester.element(find.text('Undo')),
+    ).style.merge(label.style);
+    expect(resolved.color, const Color(0xFFF9F9F7));
+  });
+
   testWidgets('expanded content shows message and two actions', (
     WidgetTester tester,
   ) async {
@@ -103,5 +142,56 @@ void main() {
       find.byKey(const ValueKey<String>('capsule_toast.decoration')),
     );
     expect((box.decoration as BoxDecoration).color, override);
+  });
+
+  testWidgets('expanded mode does not reuse a compact custom builder', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.custom(
+        title: 'Structured expanded fallback',
+        initialMode: CapsuleToastMode.expanded,
+        compactBuilder:
+            (BuildContext context, CapsuleToastContentContext details) {
+              return const SizedBox(
+                key: ValueKey<String>('compact-builder-marker'),
+                width: 180,
+                height: 44,
+              );
+            },
+      ),
+    );
+
+    expect(find.text('Structured expanded fallback'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('compact-builder-marker')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('compact mode does not reuse an expanded custom builder', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.custom(
+        title: 'Structured compact fallback',
+        expandedBuilder:
+            (BuildContext context, CapsuleToastContentContext details) {
+              return const SizedBox(
+                key: ValueKey<String>('expanded-builder-marker'),
+                width: 240,
+                height: 96,
+              );
+            },
+      ),
+    );
+
+    expect(find.text('Structured compact fallback'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('expanded-builder-marker')),
+      findsNothing,
+    );
   });
 }

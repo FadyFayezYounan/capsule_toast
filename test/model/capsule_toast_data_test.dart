@@ -1,8 +1,13 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
+
+Widget customBuilder(BuildContext context, CapsuleToastContentContext details) {
+  return const SizedBox();
+}
 
 void main() {
   test('semantic factories select type and leave copy caller-owned', () {
@@ -52,6 +57,55 @@ void main() {
 
     expect(
       () => toast.copyWith(displayDuration: Duration(milliseconds: -1)),
+      throwsAssertionError,
+    );
+  });
+
+  test('structured factories reject empty visible or semantic text', () {
+    expect(() => CapsuleToastData.success(title: ''), throwsAssertionError);
+    expect(
+      () => CapsuleToastData.success(title: 'Saved', message: ''),
+      throwsAssertionError,
+    );
+    expect(
+      () => CapsuleToastData.success(title: 'Saved', semanticAnnouncement: ''),
+      throwsAssertionError,
+    );
+  });
+
+  test('displayDuration must be positive when present', () {
+    expect(
+      () => CapsuleToastData.neutral(
+        title: 'Invalid',
+        displayDuration: Duration.zero,
+      ),
+      throwsAssertionError,
+    );
+  });
+
+  test('copyWith cannot bypass structured invariants', () {
+    final CapsuleToastData toast = CapsuleToastData.success(
+      title: 'Saved',
+      message: 'Available offline.',
+    );
+
+    expect(() => toast.copyWith(title: null), throwsAssertionError);
+    expect(() => toast.copyWith(message: ''), throwsAssertionError);
+    expect(
+      () => toast.copyWith(semanticAnnouncement: ''),
+      throwsAssertionError,
+    );
+  });
+
+  test('copyWith cannot remove the last custom builder or announcement', () {
+    final CapsuleToastData toast = CapsuleToastData.custom(
+      semanticAnnouncement: 'Custom status.',
+      compactBuilder: customBuilder,
+    );
+
+    expect(() => toast.copyWith(compactBuilder: null), throwsAssertionError);
+    expect(
+      () => toast.copyWith(semanticAnnouncement: null),
       throwsAssertionError,
     );
   });

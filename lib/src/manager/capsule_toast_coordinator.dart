@@ -35,7 +35,7 @@ final class CapsuleToastCoordinator extends ChangeNotifier
   @override
   CapsuleToastHandle show(
     CapsuleToastData toast, {
-    CapsuleToastQueuePolicy queuePolicy = CapsuleToastQueuePolicy.enqueue,
+    CapsuleToastQueuePolicy queuePolicy = CapsuleToastQueuePolicy.replace,
   }) {
     _assertNotDisposed();
     final CapsuleToastRecord record = _createRecord(toast);

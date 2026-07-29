@@ -19,13 +19,24 @@ void main() {
     final double compactHeight = capsuleSize(tester).height;
 
     await tester.tap(find.byKey(capsuleSurfaceKey));
+    // The expanded target is whatever the expanded layout measures, which is
+    // only known once that layout has been through a frame. The spring picks
+    // it up on the tick after, rather than moving toward an estimate first.
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 520));
     final double expandedHeight = capsuleSize(tester).height;
     expect(expandedHeight, greaterThan(compactHeight));
 
     await tester.tap(find.byKey(capsuleSurfaceKey));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 520));
     expect(capsuleSize(tester).height, closeTo(compactHeight, 1));
+
+    // Both sizes are cached now, so a repeat expand retargets on the same
+    // frame as the gesture and settles at exactly the height measured before.
+    await tester.tap(find.byKey(capsuleSurfaceKey));
+    await tester.pump(const Duration(milliseconds: 520));
+    expect(capsuleSize(tester).height, closeTo(expandedHeight, 1));
   });
 
   testWidgets('pressing pauses auto-dismiss', (tester) async {
@@ -43,9 +54,35 @@ void main() {
     expect(find.byKey(capsuleSurfaceKey), findsOneWidget);
 
     await gesture.up();
+    // The paused controller has released its ticker; establish the resumed
+    // ticker's zero-time frame before advancing the remaining hold duration.
+    await tester.pump();
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byKey(capsuleSurfaceKey), findsNothing);
+  });
+
+  testWidgets('a settled paused toast releases its motion ticker', (
+    WidgetTester tester,
+  ) async {
+    final ToastTestHarness harness = await pumpToastHarness(
+      tester,
+      CapsuleToastData.success(
+        title: 'Paused efficiently',
+        displayDuration: const Duration(seconds: 10),
+      ),
+    );
+    final TestGesture gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(capsuleSurfaceKey)),
+    );
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(harness.motion.debugInteractionPaused, isTrue);
+    expect(tester.binding.transientCallbackCount, 0);
+    expect(find.byKey(capsuleSurfaceKey), findsOneWidget);
+
+    await gesture.up();
   });
 
   testWidgets('elapsed hold completes with timedOut', (tester) async {
@@ -132,6 +169,7 @@ void main() {
       ),
     );
 
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();

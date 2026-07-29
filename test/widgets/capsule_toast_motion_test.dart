@@ -1,6 +1,6 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
@@ -20,6 +20,70 @@ void main() {
     expect(capsuleSize(tester).height, closeTo(34, 0.5));
     await tester.pump(const Duration(milliseconds: 520));
     expect(capsuleSize(tester).height, greaterThanOrEqualTo(44));
+  });
+
+  testWidgets('per-toast theme controls the entrance seed geometry', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.success(
+        title: 'Themed seed',
+        theme: CapsuleToastThemeData(seedSize: const Size(102, 38)),
+      ),
+      settle: false,
+    );
+
+    expect(capsuleSize(tester).width, closeTo(102, 0.01));
+    expect(capsuleSize(tester).height, closeTo(38, 0.01));
+  });
+
+  testWidgets('ambient theme controls the entrance seed geometry', (
+    WidgetTester tester,
+  ) async {
+    late BuildContext commandContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (BuildContext context, Widget? child) {
+          return CapsuleToastTheme(
+            data: CapsuleToastThemeData(seedSize: const Size(96, 36)),
+            child: CapsuleToastHost(child: child!),
+          );
+        },
+        home: Builder(
+          builder: (BuildContext context) {
+            commandContext = context;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    CapsuleToastHost.of(
+      commandContext,
+    ).show(CapsuleToastData.success(title: 'Ambient seed'));
+    await tester.pump();
+
+    expect(capsuleSize(tester).width, closeTo(96, 0.01));
+    expect(capsuleSize(tester).height, closeTo(36, 0.01));
+  });
+
+  testWidgets('themed seed also controls exit geometry', (
+    WidgetTester tester,
+  ) async {
+    final ToastTestHarness harness = await pumpToastHarness(
+      tester,
+      CapsuleToastData.success(
+        title: 'Wide exit seed',
+        persistent: true,
+        theme: CapsuleToastThemeData(seedSize: const Size(220, 40)),
+      ),
+    );
+
+    harness.handle.dismiss();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(capsuleSize(tester).width, greaterThan(180));
   });
 
   testWidgets('reference timestamps have deterministic geometry', (

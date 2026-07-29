@@ -32,6 +32,8 @@ dependencies:
     path: ../
   flutter:
     sdk: flutter
+  # The reference design is set in Inter; the lab matches its typography.
+  google_fonts: ^6.3.2
 
 dev_dependencies:
   flutter_test:

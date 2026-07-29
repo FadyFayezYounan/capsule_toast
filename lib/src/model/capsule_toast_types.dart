@@ -69,7 +69,30 @@ enum CapsuleToastGlyph {
   loading,
 
   /// Neutral glyph.
-  neutral,
+  neutral;
+
+  /// The glyph to paint for [type].
+  ///
+  /// [automatic] resolves to the glyph matching [type];
+  /// [CapsuleToastType.custom] has no glyph of its own and resolves to
+  /// [neutral]. Any other value is returned unchanged, so a caller can pass a
+  /// user-supplied glyph through without checking it first.
+  ///
+  /// The result is never [automatic].
+  CapsuleToastGlyph resolveFor(CapsuleToastType type) {
+    if (this != CapsuleToastGlyph.automatic) {
+      return this;
+    }
+    return switch (type) {
+      CapsuleToastType.success => CapsuleToastGlyph.success,
+      CapsuleToastType.information => CapsuleToastGlyph.information,
+      CapsuleToastType.warning => CapsuleToastGlyph.warning,
+      CapsuleToastType.error => CapsuleToastGlyph.error,
+      CapsuleToastType.loading => CapsuleToastGlyph.loading,
+      CapsuleToastType.neutral => CapsuleToastGlyph.neutral,
+      CapsuleToastType.custom => CapsuleToastGlyph.neutral,
+    };
+  }
 }
 
 /// Named content regions within a toast capsule.

@@ -13,16 +13,28 @@ class CapsuleToastMeasure extends SingleChildRenderObjectWidget {
   /// Creates a measure wrapper that invokes [onSizeChanged] after layout.
   const CapsuleToastMeasure({
     super.key,
+    required this.generation,
     required this.onSizeChanged,
     super.child,
   });
+
+  /// Identifies the content being measured.
+  ///
+  /// Reporting is deduplicated against the previous size, so a new toast whose
+  /// content happens to lay out to the size the outgoing one had — re-firing
+  /// the same toast always does — would report nothing. Changing [generation]
+  /// drops that cache so the listener hears the size again.
+  final int generation;
 
   /// Called after layout when the child's size differs from the previous frame.
   final CapsuleToastSizeChanged onSizeChanged;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    return RenderCapsuleToastMeasure(onSizeChanged: onSizeChanged);
+    return RenderCapsuleToastMeasure(
+      generation: generation,
+      onSizeChanged: onSizeChanged,
+    );
   }
 
   @override
@@ -30,12 +42,15 @@ class CapsuleToastMeasure extends SingleChildRenderObjectWidget {
     BuildContext context,
     covariant RenderCapsuleToastMeasure renderObject,
   ) {
-    renderObject.onSizeChanged = onSizeChanged;
+    renderObject
+      ..onSizeChanged = onSizeChanged
+      ..generation = generation;
   }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
+    properties.add(IntProperty('generation', generation));
     properties.add(
       ObjectFlagProperty<CapsuleToastSizeChanged>.has(
         'onSizeChanged',
@@ -46,11 +61,28 @@ class CapsuleToastMeasure extends SingleChildRenderObjectWidget {
 }
 
 class RenderCapsuleToastMeasure extends RenderProxyBox {
-  RenderCapsuleToastMeasure({required this.onSizeChanged});
+  RenderCapsuleToastMeasure({
+    required this.onSizeChanged,
+    required this._generation,
+  });
 
   CapsuleToastSizeChanged onSizeChanged;
 
   Size? _lastReportedSize;
+  int _generation;
+
+  /// Content generation being measured; see [CapsuleToastMeasure.generation].
+  int get generation => _generation;
+  set generation(int value) {
+    if (_generation == value) {
+      return;
+    }
+    _generation = value;
+    _lastReportedSize = null;
+    // Layout is what reports, so ask for it: identical content under identical
+    // constraints is otherwise clean and never lays out again.
+    markNeedsLayout();
+  }
 
   @override
   void performLayout() {

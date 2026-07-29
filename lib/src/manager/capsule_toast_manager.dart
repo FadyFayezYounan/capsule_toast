@@ -9,7 +9,7 @@ abstract interface class CapsuleToastManager {
   /// Shows [toast] and returns a handle for live commands.
   CapsuleToastHandle show(
     CapsuleToastData toast, {
-    CapsuleToastQueuePolicy queuePolicy = CapsuleToastQueuePolicy.enqueue,
+    CapsuleToastQueuePolicy queuePolicy = CapsuleToastQueuePolicy.replace,
   });
 
   /// Clears queued toasts and begins exit for the active toast.

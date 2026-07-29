@@ -51,11 +51,6 @@ class CapsuleToastSurface extends StatelessWidget {
                   : theme.maximumWidth!,
             );
         final Size? clipSize = liveSize;
-        final Widget body = _CapsuleToastSurfaceBody(
-          theme: theme,
-          liveHeight: clipSize?.height,
-          child: child,
-        );
 
         final Widget surface;
         if (clipSize == null ||
@@ -63,21 +58,19 @@ class CapsuleToastSurface extends StatelessWidget {
             !constraints.hasTightHeight) {
           surface = ConstrainedBox(
             constraints: BoxConstraints(maxWidth: maxWidth),
-            child: body,
+            child: _CapsuleToastSurfaceBody(theme: theme, child: child),
           );
         } else {
-          surface = ClipRRect(
-            borderRadius: BorderRadius.circular(
-              math.min(clipSize.height / 2, theme.radiusCap!),
-            ),
-            child: OverflowBox(
-              alignment: Alignment.topCenter,
-              minWidth: 0,
-              maxWidth: maxWidth,
-              minHeight: 0,
-              maxHeight: double.infinity,
-              child: body,
-            ),
+          // Tight constraints are the live spring size, so the chrome is drawn
+          // on the springing box itself and content overflows inside it. The
+          // capsule is then the thing that moves: it grows around content on
+          // the way out and shrinks around it on the way back, revealing and
+          // absorbing the event from the inside out.
+          surface = _CapsuleToastSurfaceBody(
+            theme: theme,
+            liveHeight: clipSize.height,
+            overflowMaxWidth: maxWidth,
+            child: child,
           );
         }
 
@@ -108,11 +101,16 @@ class _CapsuleToastSurfaceBody extends StatefulWidget {
     required this.theme,
     required this.child,
     this.liveHeight,
+    this.overflowMaxWidth,
   });
 
   final CapsuleToastThemeData theme;
   final Widget child;
   final double? liveHeight;
+
+  /// When non-null, content is centred at its natural size and allowed to
+  /// overflow the capsule, which clips it.
+  final double? overflowMaxWidth;
 
   @override
   State<_CapsuleToastSurfaceBody> createState() =>
@@ -121,31 +119,36 @@ class _CapsuleToastSurfaceBody extends StatefulWidget {
 
 class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
   Size? _laidOutSize;
+  bool _readScheduled = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-      _handleSizeChanged();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((Duration _) => _readSize());
   }
 
-  void _handleSizeChanged() {
+  void _readSize() {
+    if (!mounted) {
+      return;
+    }
     final RenderBox? box = context.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) {
+    if (box == null || !box.hasSize || _laidOutSize == box.size) {
       return;
     }
-    final Size size = box.size;
-    if (_laidOutSize == size) {
+    setState(() => _laidOutSize = box.size);
+  }
+
+  // SizeChangedLayoutNotification is dispatched from inside layout, where this
+  // box is an ancestor of the notifier: its size is off limits and setState is
+  // a forbidden mid-frame rebuild. Both wait for the frame to end.
+  void _handleSizeChanged() {
+    if (_readScheduled) {
       return;
     }
-    // Defer to the next frame — SizeChangedLayoutNotification fires during
-    // layout, and setState there schedules a forbidden mid-frame rebuild.
+    _readScheduled = true;
     SchedulerBinding.instance.addPostFrameCallback((Duration _) {
-      if (!mounted || _laidOutSize == size) {
-        return;
-      }
-      setState(() => _laidOutSize = size);
+      _readScheduled = false;
+      _readSize();
     });
   }
 
@@ -154,29 +157,43 @@ class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
     final double radiusHeight =
         widget.liveHeight ?? _laidOutSize?.height ?? widget.theme.radiusCap!;
     final double radius = math.min(radiusHeight / 2, widget.theme.radiusCap!);
+    final BorderRadius borderRadius = BorderRadius.circular(radius);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: NotificationListener<SizeChangedLayoutNotification>(
-        onNotification: (SizeChangedLayoutNotification notification) {
-          _handleSizeChanged();
-          return false;
-        },
-        child: SizeChangedLayoutNotifier(
-          child: DecoratedBox(
-            key: const ValueKey<String>('capsule_toast.decoration'),
-            decoration: BoxDecoration(
-              color: widget.theme.surfaceColor,
-              border: Border.all(
-                color: widget.theme.borderColor!,
-                width: widget.theme.borderWidth!,
-              ),
-              boxShadow: widget.theme.shadows,
-            ),
-            child: widget.child,
-          ),
+    Widget content = NotificationListener<SizeChangedLayoutNotification>(
+      onNotification: (SizeChangedLayoutNotification notification) {
+        _handleSizeChanged();
+        return false;
+      },
+      child: SizeChangedLayoutNotifier(child: widget.child),
+    );
+    if (widget.overflowMaxWidth case final double overflowMaxWidth) {
+      content = OverflowBox(
+        alignment: Alignment.center,
+        minWidth: 0,
+        maxWidth: overflowMaxWidth,
+        minHeight: 0,
+        maxHeight: double.infinity,
+        child: content,
+      );
+    }
+
+    // Fill, hairline and shadow belong to the capsule, so they are painted on
+    // this box and the clip goes inside them. Clipping the decoration instead
+    // would pin the visible pill to the content's size — it would snap to the
+    // collapsed shape the instant the mode changed while only an invisible
+    // window animated, and the shadow would be clipped away entirely.
+    return DecoratedBox(
+      key: const ValueKey<String>('capsule_toast.decoration'),
+      decoration: BoxDecoration(
+        color: widget.theme.surfaceColor,
+        border: Border.all(
+          color: widget.theme.borderColor!,
+          width: widget.theme.borderWidth!,
         ),
+        borderRadius: borderRadius,
+        boxShadow: widget.theme.shadows,
       ),
+      child: ClipRRect(borderRadius: borderRadius, child: content),
     );
   }
 }

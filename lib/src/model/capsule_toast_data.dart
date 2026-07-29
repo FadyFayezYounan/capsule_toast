@@ -74,7 +74,7 @@ class CapsuleToastContentContext with Diagnosticable {
 /// Immutable configuration for a structured capsule toast.
 @immutable
 class CapsuleToastData with Diagnosticable {
-  const CapsuleToastData._({
+  CapsuleToastData._({
     required this.type,
     this.id,
     this.title,
@@ -94,13 +94,47 @@ class CapsuleToastData with Diagnosticable {
     this.compactBuilder,
     this.expandedBuilder,
     this.textDirection,
-  }) : assert(icon == null || iconBuilder == null),
-       assert(!persistent || displayDuration == null);
-
-  static void _assertDurationRules(Duration? displayDuration, bool persistent) {
-    assert(displayDuration == null || !displayDuration.isNegative);
-    assert(!persistent || displayDuration == null);
-  }
+  }) : assert(
+         type == CapsuleToastType.custom || title != null && title.isNotEmpty,
+         'Structured capsule toasts require a non-empty title.',
+       ),
+       assert(
+         title == null || title.isNotEmpty,
+         'CapsuleToastData.title cannot be empty.',
+       ),
+       assert(
+         message == null || message.isNotEmpty,
+         'CapsuleToastData.message cannot be empty.',
+       ),
+       assert(
+         semanticAnnouncement == null || semanticAnnouncement.isNotEmpty,
+         'CapsuleToastData.semanticAnnouncement cannot be empty.',
+       ),
+       assert(
+         type != CapsuleToastType.custom ||
+             title != null ||
+             semanticAnnouncement != null,
+         'Custom capsule toasts require a non-empty title or semantic '
+         'announcement.',
+       ),
+       assert(
+         type != CapsuleToastType.custom ||
+             compactBuilder != null ||
+             expandedBuilder != null,
+         'Custom capsule toasts require a compactBuilder or expandedBuilder.',
+       ),
+       assert(
+         icon == null || iconBuilder == null,
+         'CapsuleToastData.icon and iconBuilder cannot both be provided.',
+       ),
+       assert(
+         displayDuration == null || displayDuration > Duration.zero,
+         'CapsuleToastData.displayDuration must be greater than zero.',
+       ),
+       assert(
+         !persistent || displayDuration == null,
+         'Persistent capsule toasts cannot have a displayDuration.',
+       );
 
   /// Creates success feedback toast data.
   factory CapsuleToastData.success({
@@ -123,8 +157,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(title.isNotEmpty);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.success,
       id: id,
@@ -169,8 +201,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(title.isNotEmpty);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.information,
       id: id,
@@ -215,8 +245,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(title.isNotEmpty);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.warning,
       id: id,
@@ -261,8 +289,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(title.isNotEmpty);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.error,
       id: id,
@@ -307,8 +333,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(title.isNotEmpty);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.loading,
       id: id,
@@ -353,8 +377,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(title.isNotEmpty);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.neutral,
       id: id,
@@ -393,12 +415,6 @@ class CapsuleToastData with Diagnosticable {
     CapsuleToastContentBuilder? expandedBuilder,
     TextDirection? textDirection,
   }) {
-    assert(
-      (title != null && title.isNotEmpty) ||
-          (semanticAnnouncement != null && semanticAnnouncement.isNotEmpty),
-    );
-    assert(compactBuilder != null || expandedBuilder != null);
-    _assertDurationRules(displayDuration, persistent);
     return CapsuleToastData._(
       type: CapsuleToastType.custom,
       id: id,
@@ -504,7 +520,6 @@ class CapsuleToastData with Diagnosticable {
         ? this.displayDuration
         : displayDuration as Duration?;
     final bool resolvedPersistent = persistent ?? this.persistent;
-    _assertDurationRules(resolvedDisplayDuration, resolvedPersistent);
     return CapsuleToastData._(
       type: type ?? this.type,
       id: identical(id, _unset) ? this.id : id,

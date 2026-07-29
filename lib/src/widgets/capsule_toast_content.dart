@@ -112,19 +112,21 @@ class CapsuleToastContent extends StatelessWidget {
       color: visualTheme.foregroundColor,
     );
 
-    return Padding(
-      padding: visualTheme.compactPadding!,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: visualTheme.compactMinimumHeight!,
-        ),
+    // The minimum bounds the capsule, not the row inside it: the reference
+    // compact layout is a 44pt border-box holding 5pt padding, a 34pt icon and
+    // 5pt padding. Constraining the row instead adds the padding on top of the
+    // minimum and makes every compact capsule 10pt too tall.
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: visualTheme.compactMinimumHeight!),
+      child: Padding(
+        padding: visualTheme.compactPadding!,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
             CapsuleToastAnimatedSlot(
               slot: CapsuleToastSlot.icon,
-              child: _buildLeadingIcon(data),
+              child: _buildLeadingIcon(data, compact: true),
             ),
             SizedBox(width: visualTheme.compactSpacing),
             Flexible(
@@ -186,24 +188,9 @@ class CapsuleToastContent extends StatelessWidget {
         ),
       );
     }
-    if (data.compactBuilder != null) {
-      return data.compactBuilder!(
-        context,
-        CapsuleToastContentContext(
-          toast: data,
-          mode: CapsuleToastMode.expanded,
-          visualTheme: visualTheme,
-          motionTheme: motionTheme,
-          manager: coordinator,
-          handle: record.handle,
-          constraints: constraints,
-        ),
-      );
-    }
-
-    final TextStyle titleStyle = visualTheme.titleTextStyle!.copyWith(
-      color: visualTheme.foregroundColor,
-    );
+    final TextStyle titleStyle =
+        (visualTheme.expandedTitleTextStyle ?? visualTheme.titleTextStyle!)
+            .copyWith(color: visualTheme.foregroundColor);
     final TextStyle messageStyle = visualTheme.messageTextStyle!.copyWith(
       color: visualTheme.secondaryForegroundColor,
     );
@@ -216,7 +203,7 @@ class CapsuleToastContent extends StatelessWidget {
         children: <Widget>[
           CapsuleToastAnimatedSlot(
             slot: CapsuleToastSlot.icon,
-            child: _buildLeadingIcon(data),
+            child: _buildLeadingIcon(data, compact: false),
           ),
           SizedBox(width: visualTheme.expandedSpacing),
           Flexible(
@@ -290,12 +277,12 @@ class CapsuleToastContent extends StatelessWidget {
     );
   }
 
-  Widget _buildLeadingIcon(CapsuleToastData data) {
+  Widget _buildLeadingIcon(CapsuleToastData data, {required bool compact}) {
     return _CapsuleToastLeadingIcon(
       data: data,
       theme: visualTheme,
       vsync: vsync,
-      compact: record.desiredMode == CapsuleToastMode.compact,
+      compact: compact,
     );
   }
 }
@@ -335,14 +322,9 @@ class _CapsuleToastLeadingIcon extends StatelessWidget {
         child: Icon(data.icon, color: accent, size: iconSize * 0.55),
       );
     } else {
-      final CapsuleToastGlyph resolved = resolveCapsuleToastGlyph(
-        data.glyph,
-        data.type,
-      );
-      icon = CapsuleToastGlyphWidget(
-        glyph: resolved,
+      icon = CapsuleToastGlyphIcon(
+        glyph: data.glyph.resolveFor(data.type),
         color: accent,
-        size: 20,
         theme: theme,
       );
     }

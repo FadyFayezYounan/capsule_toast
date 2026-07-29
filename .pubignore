@@ -1,4 +1,11 @@
-# Generated API docs and internal planning — not published.
-doc/api/
-docs/superpowers/
+.dart_tool/
+.idea/
+.worktrees/
 .superpowers/
+.gitignore
+**/*.iml
+**/build/
+coverage/
+**/doc/api/
+docs/superpowers/
+test/failures/

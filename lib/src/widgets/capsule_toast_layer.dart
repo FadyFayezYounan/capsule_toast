@@ -77,11 +77,10 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   bool _resolveHapticPending = false;
   final FocusNode _capsuleFocusNode = FocusNode(
     debugLabel: 'capsule_toast.surface',
-  )..skipTraversal = true;
+  );
   final FocusScopeNode _toastFocusScope = FocusScopeNode(
     debugLabel: 'capsule_toast.scope',
   );
-  final GlobalKey _capsuleBodyKey = GlobalKey(debugLabel: 'capsule_toast.body');
 
   CapsuleMotionController get _motion => widget.motion;
 
@@ -196,6 +195,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _motion.setReducedMotion(_isReducedMotion(motionTheme));
 
     final Size seed = visualTheme.seedSize ?? const Size(84, 34);
+    _motion.updateSeedSize(seed);
     final Size target = _measuredSize ?? seed;
     final Duration? holdDuration = _resolveHoldDuration(
       record.data,
@@ -208,29 +208,20 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
 
     if (!_motionStarted || tokenChanged) {
       if (_motionStarted && tokenChanged) {
-        final CapsuleLifecycleState state = _motion.value.state;
-        final bool needsFreshEntrance =
-            state == CapsuleLifecycleState.hidden ||
-            state == CapsuleLifecycleState.collapsing;
-        if (needsFreshEntrance) {
-          // After exit (or mid-exit swap), begin entrance — replace-from-hidden
-          // never calls begin, so _advance would no-op and the toast stays
-          // invisible. Mid-exit must also cancel collapsing so finishActiveExit
-          // cannot complete the newly promoted record.
-          _measuredSize = null;
-          _motion.show(
-            target: seed,
-            mode: record.desiredMode,
-            holdDuration: holdDuration,
-          );
-        } else {
-          // Visible retarget: keep spring position and velocity.
-          _motion.replace(
-            target: target,
-            mode: record.desiredMode,
-            holdDuration: holdDuration,
-          );
-        }
+        // A new token is a new event, never a continuation of the old one, so
+        // it always re-seeds: geometry snaps back to the resolved theme seed at
+        // zero opacity and replays the entrance. The reference gets this from
+        // swapping `item` identity, which re-runs its seeding effect. Sizes
+        // measured for the outgoing content are dropped — the probes report
+        // the incoming content's own sizes on the next layout.
+        _measuredSize = null;
+        _compactSize = null;
+        _expandedSize = null;
+        _motion.show(
+          target: seed,
+          mode: record.desiredMode,
+          holdDuration: holdDuration,
+        );
       } else {
         _motion.show(
           target: target,
@@ -248,18 +239,15 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       _dragDy = 0;
       _dragging = false;
       _longPressActive = false;
-      final bool hasActions =
-          record.data.compactAction != null ||
-          record.data.primaryAction != null ||
-          record.data.secondaryAction != null;
-      if (hasActions) {
-        WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-          if (!mounted || _activeToken != record.token) {
-            return;
-          }
-          _toastFocusScope.requestFocus();
-        });
-      }
+      WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+        if (!mounted || _activeToken != record.token) {
+          return;
+        }
+        // The overlay sits beside the route's modal focus scope, so traversal
+        // cannot discover it from the route. Focus the toast scope first;
+        // the next Tab then reaches the capsule surface followed by actions.
+        _toastFocusScope.requestFocus();
+      });
     } else if (revisionChanged) {
       _motion.resolve(
         target: target,
@@ -273,16 +261,21 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       // Retarget immediately so a following pump(duration) advances springs
       // toward the new mode. tester.tap does not pump after pointer-up, so
       // waiting for measure alone leaves the ticker on the old size.
+      // Retarget immediately so a following pump(duration) advances springs
+      // toward the new mode. tester.tap does not pump after pointer-up, so
+      // waiting for measure alone leaves the ticker on the old size.
+      //
+      // Each mode's size is cached the first time it is laid out, so after one
+      // round trip the target is exact. Before that, hold the current size
+      // rather than estimating: measure lands next frame either way, and an
+      // invented target would aim the spring somewhere the capsule is never
+      // going.
       _activeMode = record.desiredMode;
       final Size current = _motion.value.size;
       if (record.desiredMode == CapsuleToastMode.expanded) {
-        final Size guess =
-            _expandedSize ??
-            Size(current.width, math.max(current.height + 30, 80));
-        _motion.expand(guess);
+        _motion.expand(_expandedSize ?? current);
       } else {
-        final Size guess = _compactSize ?? current;
-        _motion.collapse(guess);
+        _motion.collapse(_compactSize ?? current);
       }
     } else if (_measuredSize != null) {
       _motion.retarget(_measuredSize!);
@@ -406,6 +399,34 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _longPressActive = false;
     _syncInteractionPaused();
     _motion.cancelDrag();
+  }
+
+  /// Distance the leading icon travels from the capsule centre to its rest
+  /// position, signed for [textDirection].
+  ///
+  /// Derived from the measured target width for the desired mode so the icon
+  /// tracks where it will come to rest, not where the spring happens to be.
+  double _resolveIconTravel({
+    required CapsuleToastRecord record,
+    required CapsuleToastThemeData visualTheme,
+    required TextDirection textDirection,
+    required Size liveSize,
+  }) {
+    final bool compact = record.desiredMode == CapsuleToastMode.compact;
+    final Size? modeSize = compact ? _compactSize : _expandedSize;
+    final double targetWidth = (modeSize ?? _measuredSize ?? liveSize).width;
+    final EdgeInsets padding =
+        (compact ? visualTheme.compactPadding! : visualTheme.expandedPadding!)
+            .resolve(textDirection);
+    final double startInset = textDirection == TextDirection.rtl
+        ? padding.right
+        : padding.left;
+    final double iconSize = compact
+        ? visualTheme.compactIconSize!
+        : visualTheme.expandedIconSize!;
+    final double iconCenter = startInset + iconSize / 2;
+    final double sign = textDirection == TextDirection.rtl ? -1.0 : 1.0;
+    return (targetWidth / 2 - iconCenter) * sign;
   }
 
   bool _isReducedMotion(CapsuleToastMotionTheme motionTheme) {
@@ -665,38 +686,47 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
               child: interactiveChild,
               builder: (BuildContext context, Widget? child) {
                 final CapsuleMotionSnapshot snapshot = _motion.value;
+                final double iconTravel = _resolveIconTravel(
+                  record: record,
+                  visualTheme: visualTheme,
+                  textDirection: textDirection,
+                  liveSize: snapshot.size,
+                );
                 return Transform.translate(
                   offset: Offset(0, snapshot.verticalOffset),
                   child: Padding(
                     padding: EdgeInsets.only(top: topInset),
-                    child: Opacity(
-                      opacity: snapshot.opacity,
-                      child: Transform.scale(
-                        scale: snapshot.scale,
-                        alignment: Alignment.topCenter,
-                        child: Align(
-                          alignment: Alignment.topCenter,
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Opacity(
+                        opacity: snapshot.opacity,
+                        // Scales about the capsule's own centre, matching the
+                        // reference's default transform origin.
+                        child: Transform.scale(
+                          scale: snapshot.scale,
+                          alignment: Alignment.center,
                           child: SizedBox.fromSize(
                             size: snapshot.size,
-                            child: KeyedSubtree(
-                              key: _capsuleBodyKey,
-                              child: CapsuleToastAnimationScope(
-                                contentElapsed: _motion.contentElapsed,
-                                revealing: _motion.contentRevealing,
-                                reducedMotion: reducedMotion,
-                                motionTheme: motionTheme,
-                                textDirection: textDirection,
-                                capsuleSize: snapshot.size,
-                                capsuleBodyKey: _capsuleBodyKey,
-                                child: CapsuleToastSurface(
-                                  theme: visualTheme,
-                                  measureMaxWidth: measureMaxWidth,
-                                  liveSize: snapshot.size,
-                                  semanticsLabel: announcement,
-                                  child: CapsuleToastMeasure(
-                                    onSizeChanged: _handleSizeChanged,
-                                    child: child,
-                                  ),
+                            child: CapsuleToastAnimationScope(
+                              contentElapsed: _motion.contentElapsed,
+                              revealing: _motion.contentRevealing,
+                              reducedMotion: reducedMotion,
+                              motionTheme: motionTheme,
+                              textDirection: textDirection,
+                              capsuleSize: snapshot.size,
+                              iconTravel: iconTravel,
+                              child: CapsuleToastSurface(
+                                theme: visualTheme,
+                                measureMaxWidth: measureMaxWidth,
+                                liveSize: snapshot.size,
+                                semanticsLabel: announcement,
+                                child: CapsuleToastMeasure(
+                                  // A new token drops the layer's cached
+                                  // sizes, so the probe has to forget its own
+                                  // deduplication cache in the same beat.
+                                  generation: record.token,
+                                  onSizeChanged: _handleSizeChanged,
+                                  child: child!,
                                 ),
                               ),
                             ),
