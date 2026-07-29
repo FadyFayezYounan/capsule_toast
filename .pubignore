@@ -7,5 +7,6 @@
 **/build/
 coverage/
 **/doc/api/
+doc/preview.gif
 docs/superpowers/
 test/failures/

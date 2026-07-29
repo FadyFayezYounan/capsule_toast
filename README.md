@@ -2,6 +2,8 @@
 
 Brand-neutral morphing capsule notifications for Flutter.
 
+![Capsule toast morphing between compact and expanded states](https://raw.githubusercontent.com/FadyFayezYounan/capsule_toast/main/doc/preview.gif)
+
 ![Compact and expanded capsule toast states](doc/capsule_toast_overview.png)
 
 ## Features
@@ -21,7 +23,7 @@ Brand-neutral morphing capsule notifications for Flutter.
 
 ```yaml
 dependencies:
-  capsule_toast: ^0.3.0
+  capsule_toast: ^0.4.0
 ```
 
 ```bash
