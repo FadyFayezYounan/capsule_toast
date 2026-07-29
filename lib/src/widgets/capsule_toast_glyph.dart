@@ -49,8 +49,14 @@ class CapsuleToastGlyphWidget extends StatefulWidget {
   }
 }
 
+// The spinner controller is created and disposed on demand as the glyph moves
+// in and out of `loading`, and one State can outlive several of those cycles:
+// a loading capsule that resolves to success and is then replaced by another
+// loading capsule reuses this element throughout. SingleTickerProviderStateMixin
+// hands out exactly one ticker per State for its whole lifetime — disposing the
+// controller does not give the slot back — so the second spinner would assert.
 class _CapsuleToastGlyphWidgetState extends State<CapsuleToastGlyphWidget>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   AnimationController? _controller;
 
   @override
