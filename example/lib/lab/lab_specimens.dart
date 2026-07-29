@@ -26,7 +26,7 @@ abstract final class LabSpecimens {
         shape: BoxShape.circle,
       ),
       child: CapsuleToastGlyphWidget(
-        glyph: resolveCapsuleToastGlyph(CapsuleToastGlyph.automatic, type),
+        glyph: CapsuleToastGlyph.automatic.resolveFor(type),
         color: theme.accents!.colorFor(type),
         size: 20,
         theme: theme,

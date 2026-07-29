@@ -146,25 +146,6 @@ double capsuleToastGlyphSize(CapsuleToastGlyph glyph) {
   };
 }
 
-/// Resolves [glyph] from toast [type] when [glyph] is [CapsuleToastGlyph.automatic].
-CapsuleToastGlyph resolveCapsuleToastGlyph(
-  CapsuleToastGlyph glyph,
-  CapsuleToastType type,
-) {
-  if (glyph != CapsuleToastGlyph.automatic) {
-    return glyph;
-  }
-  return switch (type) {
-    CapsuleToastType.success => CapsuleToastGlyph.success,
-    CapsuleToastType.information => CapsuleToastGlyph.information,
-    CapsuleToastType.warning => CapsuleToastGlyph.warning,
-    CapsuleToastType.error => CapsuleToastGlyph.error,
-    CapsuleToastType.loading => CapsuleToastGlyph.loading,
-    CapsuleToastType.neutral => CapsuleToastGlyph.neutral,
-    CapsuleToastType.custom => CapsuleToastGlyph.neutral,
-  };
-}
-
 /// Paints one glyph inside a 20-unit canvas, matching the reference SVGs.
 ///
 /// Every path below is a transcription of the corresponding `<svg>` in the

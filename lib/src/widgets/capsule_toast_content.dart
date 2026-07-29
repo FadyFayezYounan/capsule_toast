@@ -322,10 +322,7 @@ class _CapsuleToastLeadingIcon extends StatelessWidget {
         child: Icon(data.icon, color: accent, size: iconSize * 0.55),
       );
     } else {
-      final CapsuleToastGlyph resolved = resolveCapsuleToastGlyph(
-        data.glyph,
-        data.type,
-      );
+      final CapsuleToastGlyph resolved = data.glyph.resolveFor(data.type);
       icon = CapsuleToastGlyphWidget(
         glyph: resolved,
         color: accent,

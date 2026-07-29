@@ -15,5 +15,4 @@ export 'src/theme/capsule_toast_theme.dart';
 export 'src/theme/capsule_toast_theme_data.dart';
 export 'src/widgets/capsule_toast_animated_slot.dart'
     show CapsuleToastAnimatedSlot;
-export 'src/widgets/capsule_toast_glyph.dart'
-    show CapsuleToastGlyphWidget, resolveCapsuleToastGlyph;
+export 'src/widgets/capsule_toast_glyph.dart' show CapsuleToastGlyphWidget;
