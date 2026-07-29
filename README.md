@@ -1,23 +1,28 @@
 # capsule_toast
 
-Brand-neutral morphing capsule notifications for Flutter.
+Morphing capsule notifications for Flutter, with interruptible spring motion,
+explicit queueing, live lifecycle controls, and app-level or per-toast theming.
 
 ![Capsule toast morphing between compact and expanded states](https://raw.githubusercontent.com/FadyFayezYounan/capsule_toast/main/doc/preview.gif)
 
-## Features
+[Package](https://pub.dev/packages/capsule_toast) ·
+[API documentation](https://pub.dev/documentation/capsule_toast/latest/) ·
+[Example](https://github.com/FadyFayezYounan/capsule_toast/tree/main/example) ·
+[Repository](https://github.com/FadyFayezYounan/capsule_toast)
 
-- Top-center morphing capsule with interruptible spring motion
-- Structured semantic factories: success, information, warning, error, loading,
-  neutral, and custom
-- Explicit FIFO queueing with replace and clear-and-show policies
-- Live handle commands: expand, collapse, resolve, dismiss
-- Loading toast resolution that preserves the same handle
-- Visual and motion themes via `ThemeExtension` and `CapsuleToastTheme`
-- Custom content builders with optional `CapsuleToastAnimatedSlot` reveals
-- Touch, mouse, keyboard, RTL, text scale, safe area, and reduced-motion support
-- Nested hosts with independent queues (no global singleton)
+## Why capsule_toast?
 
-## Installation
+- Top-center capsules that morph between compact and expanded layouts
+- Success, information, warning, error, loading, neutral, and custom content
+- Replace, FIFO enqueue, and clear-and-show queue policies
+- Live expand, collapse, resolve, and dismiss commands
+- Visual and motion themes that follow the host application's brightness
+- Touch, mouse, keyboard, RTL, large-text, safe-area, and reduced-motion support
+- Independent nested hosts instead of a global singleton or navigator key
+
+## Quick start
+
+Add the package:
 
 ```yaml
 dependencies:
@@ -28,11 +33,7 @@ dependencies:
 flutter pub get
 ```
 
-## Setup
-
-Install the host once through `MaterialApp.builder`. Lookup always goes through
-`CapsuleToastHost.of(context)` — there is no global manager, navigator key, or
-`BuildContext` extension.
+Install one `CapsuleToastHost` through `MaterialApp.builder`:
 
 ```dart
 import 'package:capsule_toast/capsule_toast.dart';
@@ -53,12 +54,9 @@ class MyApp extends StatelessWidget {
 }
 ```
 
-## Showing toasts
+Then look up the nearest host and show a toast:
 
 ```dart
-import 'package:capsule_toast/capsule_toast.dart';
-import 'package:flutter/material.dart';
-
 void onSaved(BuildContext context) {
   CapsuleToastHost.of(context).show(
     CapsuleToastData.success(title: 'Saved'),
@@ -66,14 +64,69 @@ void onSaved(BuildContext context) {
 }
 ```
 
-Other factories: `information`, `warning`, `error`, `loading`, `neutral`, and
-`custom`. Pass `initialMode: CapsuleToastMode.expanded` to open expanded.
+`CapsuleToastHost.of(context)` throws a descriptive `FlutterError` when no host
+is installed. Use `CapsuleToastHost.maybeOf(context)` when the host is optional.
+There is no global manager, navigator key, or `BuildContext` extension.
 
-## Queue policy
+## Toast content and layout
 
-By default, a new toast replaces the active capsule. Pass
-`CapsuleToastQueuePolicy.enqueue` explicitly when events must wait in FIFO
-order.
+`CapsuleToastData` provides these semantic factories:
+
+| Factory | Intended use | Default lifetime |
+|---|---|---|
+| `success` | Completed successfully | Timed |
+| `information` | Informational feedback | Timed |
+| `warning` | Cautionary feedback | Timed |
+| `error` | Failed operation | Timed |
+| `loading` | Work in progress | Persistent |
+| `neutral` | Feedback without a semantic accent | Timed |
+| `custom` | Caller-defined content | Timed |
+
+Structured factories require a title and can also receive a message, semantic
+announcement, glyph or custom icon, actions, visual and motion overrides, and
+mode-specific builders.
+
+To start with the full message and expanded actions visible, set
+`initialMode`:
+
+```dart
+CapsuleToastHost.of(context).show(
+  CapsuleToastData.warning(
+    title: 'Connection is unstable',
+    message: 'Changes will sync when the connection recovers.',
+    initialMode: CapsuleToastMode.expanded,
+  ),
+);
+```
+
+Users can tap the capsule or activate it from the keyboard to toggle its mode;
+a long press expands it. Code can control the same state through the returned
+handle.
+
+## Duration and persistence
+
+Non-persistent toasts use the default duration for their semantic type. Supply
+`displayDuration` to override it:
+
+```dart
+CapsuleToastData.information(
+  title: 'Copied',
+  displayDuration: const Duration(seconds: 2),
+);
+```
+
+Set `persistent: true` when a toast must remain until it is dismissed or
+resolved. A persistent toast cannot also define `displayDuration`. Loading
+toasts are persistent by default.
+
+Interaction pauses the visible hold timer while the pointer is down or hovering
+over the capsule.
+
+## Queue policies
+
+The default policy is `CapsuleToastQueuePolicy.replace`: showing a new toast
+replaces the active one. Choose `enqueue` explicitly when events must wait in
+FIFO order.
 
 ```dart
 final CapsuleToastManager manager = CapsuleToastHost.of(context);
@@ -96,40 +149,72 @@ manager.show(
 manager.clear();
 ```
 
-`CapsuleToastHost(maximumQueueLength: …)` caps queued records behind the active
-toast. Overflowing enqueues complete with
-`CapsuleToastDismissReason.queueOverflow`.
+`manager.queueLength` counts records waiting behind the active toast.
+`CapsuleToastHost(maximumQueueLength: ...)` limits that waiting queue and
+defaults to 20. When a full queue receives another enqueue, its oldest waiting
+record completes with `CapsuleToastDismissReason.queueOverflow`; a capacity of
+zero rejects every waiting record with the same reason.
 
-## Handle commands
+`clear()` completes queued records with `cleared` and starts the active toast's
+exit.
 
-`show` returns a `CapsuleToastHandle` for the live record:
+## Live handles and results
+
+`show` returns a `CapsuleToastHandle` tied to that record:
 
 ```dart
 final CapsuleToastHandle handle = CapsuleToastHost.of(context).show(
-  CapsuleToastData.information(title: 'Details available'),
+  CapsuleToastData.information(
+    id: 'sync-status',
+    title: 'Details available',
+  ),
 );
 
 handle.expand();
 handle.collapse();
-handle.dismiss();
+
+if (!handle.isClosed) {
+  handle.dismiss();
+}
 
 final CapsuleToastResult result = await handle.closed;
 ```
 
+`closed` completes exactly once and reports why the record ended. Reasons
+include timeout, explicit dismissal, swipe, action selection, replacement,
+queue clearing, queue overflow, and host disposal. When an action dismissed
+the toast, `result.action` contains that `CapsuleToastAction`.
+
+Commands issued after a handle closes are ignored.
+
 ## Loading resolution
 
-Resolve a loading toast into a terminal toast without creating a second record:
+Resolve an in-progress toast into terminal content without creating a second
+record or changing its handle:
 
 ```dart
 final CapsuleToastHandle handle = CapsuleToastHost.of(context).show(
-  CapsuleToastData.loading(title: 'Uploading'),
+  CapsuleToastData.loading(
+    id: 'upload',
+    title: 'Uploading',
+  ),
 );
 
-// later…
-handle.resolve(CapsuleToastData.success(title: 'Uploaded'));
+try {
+  await uploadFile();
+  handle.resolve(CapsuleToastData.success(title: 'Uploaded'));
+} catch (_) {
+  handle.resolve(CapsuleToastData.error(title: 'Upload failed'));
+}
 ```
 
+Only an unresolved loading record can be resolved. The new toast data supplies
+the resolved record's type, content, lifetime, and presentation.
+
 ## Actions
+
+Compact content can show one action. Expanded content can show primary and
+secondary actions:
 
 ```dart
 CapsuleToastHost.of(context).show(
@@ -138,30 +223,55 @@ CapsuleToastHost.of(context).show(
     compactAction: CapsuleToastAction(
       label: 'Open',
       onPressed: () {
-        // navigate…
+        // Open the draft.
       },
     ),
     primaryAction: CapsuleToastAction(
       label: 'Review',
-      onPressed: () {},
+      onPressed: () async {
+        await openReview();
+      },
     ),
     secondaryAction: CapsuleToastAction(
-      label: 'Dismiss',
+      label: 'Keep editing',
       onPressed: () {},
-      dismissOnInvoke: true,
+      dismissOnInvoke: false,
     ),
   ),
 );
 ```
 
-## Visual theme
+Actions dismiss after invocation by default. Set `dismissOnInvoke: false` to
+keep the toast open. `onPressed` accepts either synchronous or asynchronous
+callbacks; use `semanticLabel` when the visible label is not sufficient for
+assistive technology.
 
-Provide overrides with `CapsuleToastTheme`, `ThemeData.extensions`, or per-toast
-`theme:` on `CapsuleToastData`.
+## Visual theming
+
+Visual overrides can be applied at three scopes. Later scopes take precedence:
+
+1. `CapsuleToastThemeData` in `ThemeData.extensions`
+2. The nearest `CapsuleToastTheme`
+3. `CapsuleToastData.theme` on one toast
+
+Use a `ThemeData` extension for an application-wide override:
+
+```dart
+ThemeData(
+  extensions: <ThemeExtension<dynamic>>[
+    CapsuleToastThemeData(
+      surfaceColor: const Color(0xFF1E293B),
+      foregroundColor: const Color(0xFFF8FAFC),
+    ),
+  ],
+);
+```
+
+Use `CapsuleToastTheme` for one subtree:
 
 ```dart
 CapsuleToastTheme(
-  data: CapsuleToastThemeData.fallback().copyWith(
+  data: CapsuleToastThemeData(
     surfaceColor: const Color(0xFF1E293B),
     foregroundColor: const Color(0xFFF8FAFC),
   ),
@@ -169,13 +279,25 @@ CapsuleToastTheme(
 );
 ```
 
-Fonts inherit from the application — this package does not bundle typefaces.
+Or customize a single toast:
 
-## Dark mode
+```dart
+CapsuleToastData.success(
+  title: 'Published',
+  theme: CapsuleToastThemeData(
+    surfaceColor: const Color(0xFF052E16),
+  ),
+);
+```
 
-The capsule ships two appearances and picks one from the host application's
-brightness, so an app with both `theme:` and `darkTheme:` needs no
-package-specific configuration:
+Partial themes merge over the resolved defaults, so only specify the tokens you
+want to change. Fonts inherit from the application; the package does not bundle
+typefaces.
+
+## Light and dark appearances
+
+The built-in appearance follows `Theme.of(context).brightness`. An application
+with both `theme` and `darkTheme` needs no package-specific switching:
 
 ```dart
 MaterialApp(
@@ -188,27 +310,12 @@ MaterialApp(
 );
 ```
 
-In a light app the capsule is a near-black overlay that sits below the app
-surface. In a dark app that would sink into the background, so the dark
-appearance lifts one step above it instead, with a brighter rim and stronger
-status tints. Geometry, timings and springs are shared.
+The light appearance uses a near-black overlay. The dark appearance lifts the
+capsule above dark surfaces with a brighter rim and stronger status tints.
+Geometry, typography, timings, and springs are shared.
 
-Customise one appearance by registering an extension on that `ThemeData` —
-anything you leave out still comes from the matching built-in appearance:
-
-```dart
-ThemeData(
-  brightness: Brightness.dark,
-  extensions: <ThemeExtension<dynamic>>[
-    CapsuleToastThemeData(
-      surfaceColor: const Color(0xFF2A2622),
-      innerHighlightColor: const Color(0x1FFFFFFF),
-    ),
-  ],
-);
-```
-
-Pin one appearance regardless of the app by registering a whole fallback:
+To pin one built-in appearance regardless of app brightness, register its whole
+fallback:
 
 ```dart
 ThemeData(
@@ -219,7 +326,11 @@ ThemeData(
 );
 ```
 
-## Motion theme
+## Motion theming
+
+`CapsuleToastMotionTheme` controls springs, durations, reveal delays, gesture
+thresholds, haptics, and reduced motion. It follows the same application and
+subtree scopes as the visual theme, and can also be supplied per toast.
 
 ```dart
 CapsuleToastTheme(
@@ -232,7 +343,14 @@ CapsuleToastTheme(
 );
 ```
 
+The default reduced-motion policy follows `MediaQuery.disableAnimations`.
+Choose `always` or `never` when the application requires an explicit policy.
+
 ## Custom builders and animated slots
+
+`CapsuleToastData.custom` accepts mode-specific builders. The builder context
+exposes the current toast, mode, resolved themes, manager, handle, and layout
+constraints.
 
 ```dart
 CapsuleToastHost.of(context).show(
@@ -241,7 +359,7 @@ CapsuleToastHost.of(context).show(
     compactBuilder: (BuildContext context, CapsuleToastContentContext details) {
       return CapsuleToastAnimatedSlot(
         slot: CapsuleToastSlot.title,
-        child: Text(details.toast.title ?? ''),
+        child: Text(details.toast.title!),
       );
     },
     expandedBuilder: (BuildContext context, CapsuleToastContentContext details) {
@@ -250,11 +368,11 @@ CapsuleToastHost.of(context).show(
         children: <Widget>[
           CapsuleToastAnimatedSlot(
             slot: CapsuleToastSlot.title,
-            child: Text(details.toast.title ?? ''),
+            child: Text(details.toast.title!),
           ),
-          CapsuleToastAnimatedSlot(
+          const CapsuleToastAnimatedSlot(
             slot: CapsuleToastSlot.message,
-            child: const Text('Expanded custom body'),
+            child: Text('Expanded custom body'),
           ),
         ],
       );
@@ -263,51 +381,83 @@ CapsuleToastHost.of(context).show(
 );
 ```
 
+`CapsuleToastAnimatedSlot` applies the package's staggered reveal and retract
+timing. When only one mode-specific builder is supplied, the other mode falls
+back to the structured content generated from the toast data.
+
+For a custom structured glyph, use `icon`, `iconBuilder`, or the exported
+`CapsuleToastGlyphIcon`.
+
 ## Nested hosts
 
-Each `CapsuleToastHost` owns its queue, handles, clocks, and ticker. Nest hosts
-when a subtree needs an independent toast layer. Prefer one host near the app
-root for most applications.
+Each `CapsuleToastHost` owns its queue, handles, lifecycle clock, and ticker.
+Use one host near the app root for most applications. Nest another host only
+when a subtree needs a separate toast layer and independent queue.
 
-## Accessibility
+Lookup always resolves to the nearest host.
 
-- Semantic announcements for structured and custom content
-- Keyboard dismissal and action activation where applicable
-- RTL mirroring for travel and layout
-- Respects `MediaQuery.disableAnimations` / reduced-motion policy
-- Large text scale and safe-area insets
+## Accessibility and input
+
+- Structured content and custom content expose semantic announcements
+- The capsule and its actions support keyboard focus and activation
+- Travel, layout, and dismissal gestures mirror for RTL
+- Reduced-motion policy can follow the platform preference
+- Large text scales and safe-area insets are supported
+- Hold timing pauses during pointer interaction
+
+Keep titles short, provide `semanticAnnouncement` for custom content when the
+visible title is insufficient, and give ambiguous actions a `semanticLabel`.
 
 ## Platform support
 
-Android, iOS, web, Windows, macOS, and Linux. iOS and Android are the pixel and
-motion fidelity targets.
+The package supports Android, iOS, web, Windows, macOS, and Linux. Android and
+iOS are the pixel and motion fidelity targets.
 
 ## Performance behavior
 
-One top-center capsule renders per host. Geometry uses deterministic
-bounded-step springs that preserve position and velocity when targets change.
-Hold timing pauses while the user interacts. Prefer short titles and avoid
-heavy work inside content builders.
+Each host renders at most one top-center capsule. Geometry uses deterministic,
+bounded-step springs that preserve position and velocity when the target
+changes. Avoid heavy synchronous work inside custom builders and action
+callbacks.
 
-## API reference
+## Public API
 
-Public entry point: `package:capsule_toast/capsule_toast.dart`.
+Import the package through:
 
-| Type | Role |
-|------|------|
-| `CapsuleToastHost` | Application-owned host and lookup |
-| `CapsuleToastManager` | `show` / `clear` / `queueLength` |
-| `CapsuleToastData` | Toast configuration factories |
-| `CapsuleToastHandle` | Live expand / collapse / resolve / dismiss |
-| `CapsuleToastResult` | Completion reason and optional action |
-| `CapsuleToastAction` | Tappable action description |
-| `CapsuleToastTheme` / `CapsuleToastThemeData` | Visual theming |
-| `CapsuleToastMotionTheme` / `CapsuleToastSpring` | Motion theming |
-| `CapsuleToastAnimatedSlot` | Staggered custom content reveals |
-| Enums in `CapsuleToastType`, `Mode`, `QueuePolicy`, and related types | Semantics and policy |
+```dart
+import 'package:capsule_toast/capsule_toast.dart';
+```
 
-See the `example/` directory for an interactive lab that tours the API.
+| API | Role |
+|---|---|
+| `CapsuleToastHost` | Owns the layer and resolves the nearest manager |
+| `CapsuleToastManager` | Shows, clears, and reports queued records |
+| `CapsuleToastData` | Configures structured or custom toast content |
+| `CapsuleToastAction` | Describes a synchronous or asynchronous action |
+| `CapsuleToastHandle` | Controls one live record and exposes its result |
+| `CapsuleToastResult` | Reports the dismissal reason and selected action |
+| `CapsuleToastTheme` | Applies visual and motion overrides to a subtree |
+| `CapsuleToastThemeData` | Defines visual tokens and glyph builders |
+| `CapsuleToastMotionTheme` | Defines timing, springs, gestures, and policies |
+| `CapsuleToastSpring` | Defines duration and bounce for one spring |
+| `CapsuleToastAnimatedSlot` | Applies staggered motion to custom content |
+| `CapsuleToastGlyphIcon` | Renders the package's structured glyphs |
+| `CapsuleToastType`, `CapsuleToastMode`, `CapsuleToastQueuePolicy` | Define semantics, layout, and queue behavior |
+| `CapsuleToastGlyph`, `CapsuleToastSlot` | Define glyph selection and animated regions |
+| `CapsuleToastDismissReason` | Describes how a record ended |
+| `CapsuleToastReducedMotionPolicy`, `CapsuleToastHapticPolicy` | Configure interaction policies |
+
+See the
+[generated API documentation](https://pub.dev/documentation/capsule_toast/latest/)
+for every constructor and property.
+
+## Project resources
+
+- [Interactive example](https://github.com/FadyFayezYounan/capsule_toast/tree/main/example)
+- [Changelog](CHANGELOG.md)
+- [Issue tracker](https://github.com/FadyFayezYounan/capsule_toast/issues)
+- [Source repository](https://github.com/FadyFayezYounan/capsule_toast)
 
 ## License
 
-BSD 3-Clause. Copyright 2026 The Capsule Toast Authors.
+BSD 3-Clause. See [LICENSE](LICENSE). Copyright 2026 The Capsule Toast Authors.
