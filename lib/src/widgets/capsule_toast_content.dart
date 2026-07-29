@@ -112,12 +112,14 @@ class CapsuleToastContent extends StatelessWidget {
       color: visualTheme.foregroundColor,
     );
 
-    return Padding(
-      padding: visualTheme.compactPadding!,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          minHeight: visualTheme.compactMinimumHeight!,
-        ),
+    // The minimum bounds the capsule, not the row inside it: the reference
+    // compact layout is a 44pt border-box holding 5pt padding, a 34pt icon and
+    // 5pt padding. Constraining the row instead adds the padding on top of the
+    // minimum and makes every compact capsule 10pt too tall.
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: visualTheme.compactMinimumHeight!),
+      child: Padding(
+        padding: visualTheme.compactPadding!,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,

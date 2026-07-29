@@ -723,6 +723,10 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
                                 liveSize: snapshot.size,
                                 semanticsLabel: announcement,
                                 child: CapsuleToastMeasure(
+                                  // A new token drops the layer's cached
+                                  // sizes, so the probe has to forget its own
+                                  // deduplication cache in the same beat.
+                                  generation: record.token,
                                   onSizeChanged: _handleSizeChanged,
                                   child: child!,
                                 ),
