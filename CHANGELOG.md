@@ -1,119 +1,30 @@
-## 0.4.0
+## 1.0.0
 
-Capsule toasts now follow the host application's brightness.
+Initial release.
 
-Other changes:
-
-- `CapsuleToastThemeData.fallback` takes an optional `Brightness` selecting the
-  appearance. It defaults to `Brightness.light`, so existing calls are
-  unchanged.
-- `CapsuleToastTheme.resolve` bases its result on `Theme.of(context).brightness`.
-  Overrides from `ThemeData.extensions` and a nearest `CapsuleToastTheme` merge
-  over that base in the same order as before.
-- Added `CapsuleToastThemeData.innerHighlightColor` and
-  `innerHighlightWidth`, the inner rim highlight along the capsule's top curve.
-  The dark appearance sets them; the light appearance leaves them null.
-- Motion, geometry, layout and typography are identical in both appearances.
-
-## 0.3.0
-
-The capsule toast glyph widget now follows Flutter framework conventions.
-Painted output is unchanged.
-
-Breaking changes:
-
-- `CapsuleToastGlyphWidget` is renamed to `CapsuleToastGlyphIcon`.
-- `resolveCapsuleToastGlyph(glyph, type)` is replaced by the enum method
-  `glyph.resolveFor(type)`.
-- `capsuleToastGlyphSize(glyph)` is removed. `CapsuleToastGlyphIcon.size` is
-  now optional; leave it null to paint a glyph at the same optical default
-  that function returned.
-- `CapsuleToastGlyphIcon.tickerEnabled` is removed. Wrap the widget in a
-  `TickerMode` with `enabled` set to false to freeze the loading spinner.
-
-Other changes:
-
-- Added `CapsuleToastGlyphIcon.defaultAnimationDuration`, the duration of one
-  full rotation of the loading spinner.
-- The loading spinner's `AnimationController` is now created once for the
-  widget's lifetime and started and stopped as the glyph changes, instead of
-  being disposed and recreated.
-
-## 0.2.0
-
-Motion and chrome now track the reference design frame for frame.
-
-Correctness and package hardening:
-
-- Theme springs, durations, slot delays, visual paddings, seed dimensions, and
-  toast text/data invariants are now validated at their construction boundary,
-  including values produced through `copyWith`.
-- `CapsuleToastThemeData`, `CapsuleToastMotionTheme`, and
-  `CapsuleToastSpring` constructors are no longer `const`, allowing complete
-  validation and defensive collection copies. Constructor names and arguments
-  are unchanged; remove explicit `const` from existing call sites.
-- Partial motion themes now interpolate without null-assertion failures, and
-  equal slot-delay maps produce equal hashes regardless of insertion order.
-- Theme-owned slot-delay maps and shadow lists are detached from caller-owned
-  mutable collections and exposed as unmodifiable values.
-- Custom builders are mode-specific; a missing compact or expanded builder
-  falls back to structured content for that mode.
-- Per-toast and ambient `seedSize` overrides now drive the actual entrance and
-  exit geometry.
-- The capsule surface is keyboard-traversable before its action controls.
-- Settled pointer-paused motion and custom loading spinners no longer retain
-  unused tickers.
-- The example queue demonstration explicitly enqueues its waiting events,
-  handles constrained widths without overflow, and has a current behavioral
-  smoke test.
-- Corrected the README's default-replacement queue contract and package
-  version, and excluded generated/local artifacts from publish archives.
-
-- Replaced `Curves.easeOut` with the reference's exact cubic ease-out
-  (`1 - (1 - t)³`) across the appearance, content reveal, retract, and exit
-  fade envelopes. The Bézier approximation Flutter ships decelerates on a
-  visibly slacker schedule.
-- Fixed the leading icon so it emanates from the capsule centre and rides
-  outward as the capsule widens. Travel is now derived from the measured
-  target width instead of a fraction of the live width that was recomputed —
-  and discarded — on every spring frame.
-- Reworked swipe-to-dismiss: the exit now begins from wherever the finger
-  released the capsule and carries a velocity-proportional kick, instead of
-  springing back to rest and then rising 6 pt. The lifecycle envelope and the
-  interactive drag are tracked separately and composed.
-- Content stays pinned to the capsule centre while the capsule springs around
-  it, so an event is revealed from the inside out rather than unrolling
-  downward from the top edge.
-- The capsule scales about its own centre during entrance.
-- Content retract is now `1 - easeOut(t)`, mirroring the reveal, rather than
-  `easeOut(1 - t)`.
-
-Chrome fixes:
-
-- Expanded action buttons hug their labels instead of stretching to the full
-  capsule width.
-- Added default action chrome: the expanded primary action is a solid light
-  pill with dark text, the secondary is bare text, and the compact chip drops
-  to 11.5 pt.
-- Added `CapsuleToastThemeData.expandedTitleTextStyle` (14.5 pt) so expanded
-  titles are no longer rendered at the compact size.
-- Fixed `ButtonStyle` merge order so theme-supplied `primaryActionStyle`,
-  `secondaryActionStyle`, and `compactActionStyle` are actually applied; they
-  were previously overwritten by the built-in defaults.
-- Exported `CapsuleToastGlyphWidget` and `resolveCapsuleToastGlyph` for custom
-  content builders that want the same glyph shapes.
-
-Also:
-
-- Rebuilt the example into the full motion lab: live capsule in a phone
-  canvas, status variants, transformations, replay with a 1× / 0.35× / 0.15×
-  clock, reduced-motion and RTL adaptations, the annotated phase timeline, and
-  a frozen component-state gallery.
-
-## 0.1.0
-
-- Initial release with structured and custom capsule content.
-- Added interruptible spring motion, FIFO queueing, replacement, and loading
-  resolution.
-- Added touch, mouse, keyboard, RTL, reduced-motion, and accessibility support.
-- Added themes, example lab, deterministic motion tests, and golden coverage.
+- `CapsuleToastHost` installs a capsule layer over any subtree. Hosts nest
+  independently, so the package needs no global singleton or navigator key.
+- Top-centre capsules morph between compact and expanded layouts on
+  interruptible damped-spring motion, with content pinned to the capsule centre
+  as the capsule springs around it.
+- `CapsuleToastType` covers success, information, warning, error, loading,
+  neutral, and custom content; compact and expanded builders take over layout
+  per mode.
+- `CapsuleToastQueuePolicy` selects replace, FIFO enqueue, or clear-and-show.
+- `CapsuleToastHandle` exposes live expand, collapse, resolve, and dismiss
+  commands, and completes with a `CapsuleToastResult` carrying a
+  `CapsuleToastDismissReason`.
+- Primary, secondary, and compact actions render with themeable button chrome.
+- `CapsuleToastThemeData` and `CapsuleToastMotionTheme` configure appearance and
+  motion. Values resolve from the app brightness, then `ThemeData.extensions`,
+  then the nearest `CapsuleToastTheme`, then per-toast overrides.
+- Light and dark appearances share identical motion, geometry, layout, and
+  typography; the dark appearance adds an inner rim highlight.
+- `CapsuleToastGlyphIcon` paints the status glyphs and the loading spinner for
+  custom content builders.
+- Touch, mouse, keyboard, and RTL input, plus safe areas, large text, and
+  screen-reader semantics.
+- Velocity-aware swipe-to-dismiss that exits from wherever the finger released
+  the capsule.
+- `CapsuleToastReducedMotionPolicy` and `CapsuleToastHapticPolicy` adapt motion
+  and feedback to platform settings.
