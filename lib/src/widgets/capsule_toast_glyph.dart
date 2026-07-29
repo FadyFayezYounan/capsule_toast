@@ -179,9 +179,58 @@ class _CapsuleToastGlyphPainter extends CustomPainter {
   }
 }
 
-/// Structured semantic glyph for capsule toast content.
+/// A status glyph for a capsule toast, painted from the package's reference
+/// vector artwork.
+///
+/// There are two kinds of glyph:
+///
+///  * _Static_. [CapsuleToastGlyph.success], [CapsuleToastGlyph.information],
+///    [CapsuleToastGlyph.warning], [CapsuleToastGlyph.error],
+///    [CapsuleToastGlyph.connectivity], and [CapsuleToastGlyph.neutral] each
+///    paint a fixed shape and never animate.
+///  * _Animated_. [CapsuleToastGlyph.loading] paints an arc over a dimmed
+///    track, turning once every [defaultAnimationDuration].
+///
+/// [CapsuleToastGlyph.automatic] paints nothing. Resolve it against a
+/// [CapsuleToastType] with [CapsuleToastGlyph.resolveFor] before constructing
+/// this widget.
+///
+/// The glyph is drawn in [color] at [size], or at a per-glyph optical default
+/// when [size] is null. It has no background of its own; the tinted circle
+/// behind it in a capsule toast is painted by the caller.
+///
+/// ## Theming
+///
+/// [theme] is an already-resolved [CapsuleToastThemeData] rather than a value
+/// read from the [BuildContext], because toasts render in an overlay where the
+/// inherited theme is not reliably reachable.
+///
+/// A [CapsuleToastThemeData.glyphBuilder] replaces every glyph except
+/// [CapsuleToastGlyph.loading] and [CapsuleToastGlyph.connectivity], which have
+/// no equivalent in a caller's icon set. A
+/// [CapsuleToastThemeData.spinnerBuilder] replaces
+/// [CapsuleToastGlyph.loading]; when one is supplied this widget leaves its own
+/// animation stopped rather than scheduling frames nothing paints.
+///
+/// ## Animation
+///
+/// The spinner is driven by an [AnimationController] this widget creates and
+/// owns. To freeze it — in a golden test, or a specimen gallery — wrap this
+/// widget in a [TickerMode] with `enabled` set to false, which mutes the
+/// ticker without changing what is painted.
+///
+/// See also:
+///
+///  * [CapsuleToastGlyph], the set of shapes this widget can paint.
+///  * [CapsuleToastThemeData.glyphBuilder], for replacing those shapes.
+///  * [CapsuleToastThemeData.spinnerBuilder], for replacing the spinner.
+///  * [CircularProgressIndicator], the Material indeterminate spinner this
+///    widget's loading glyph is modelled on.
 class CapsuleToastGlyphIcon extends StatefulWidget {
   /// Creates a capsule toast status glyph.
+  ///
+  /// The [glyph] is painted in [color] at [size], or at a per-glyph optical
+  /// default when [size] is null. The [size] must be greater than zero.
   const CapsuleToastGlyphIcon({
     super.key,
     required this.glyph,
@@ -190,18 +239,26 @@ class CapsuleToastGlyphIcon extends StatefulWidget {
     this.size,
   }) : assert(size == null || size > 0);
 
-  /// Which glyph shape to draw.
+  /// Which shape to paint.
+  ///
+  /// [CapsuleToastGlyph.automatic] paints nothing; resolve it with
+  /// [CapsuleToastGlyph.resolveFor] first.
   final CapsuleToastGlyph glyph;
 
-  /// Stroke and fill color.
+  /// The stroke and fill color of the glyph.
+  ///
+  /// The loading glyph's track is painted in this color at 22% alpha.
   final Color color;
 
-  /// Resolved theme providing optional custom builders.
+  /// The resolved theme supplying the optional glyph and spinner builders.
   final CapsuleToastThemeData theme;
 
   /// The logical width and height of the glyph canvas.
   ///
-  /// If null, each glyph is painted at its own optical default.
+  /// If null, each glyph is painted at its own optical default. The reference
+  /// sizes the shapes individually rather than normalising them: the check is
+  /// the lightest shape so it can afford to be smallest, while the triangle
+  /// and the signal arcs need the extra room to read at a glance.
   final double? size;
 
   /// The default duration of one full rotation of the loading spinner.
