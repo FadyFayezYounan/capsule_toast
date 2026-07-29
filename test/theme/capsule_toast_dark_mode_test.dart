@@ -144,4 +144,105 @@ void main() {
     );
     expect(base.copyWith().innerHighlightColor, const Color(0x1AFFFFFF));
   });
+
+  group('resolution follows the host application brightness', () {
+    Future<CapsuleToastThemeData> resolveUnder(
+      WidgetTester tester,
+      ThemeData theme,
+    ) async {
+      late CapsuleToastThemeData resolved;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: Builder(
+            builder: (BuildContext context) {
+              resolved = CapsuleToastTheme.resolve(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      return resolved;
+    }
+
+    testWidgets('a dark app gets the dark base', (WidgetTester tester) async {
+      final CapsuleToastThemeData resolved = await resolveUnder(
+        tester,
+        ThemeData(brightness: Brightness.dark),
+      );
+      expect(resolved.surfaceColor, const Color(0xFF26231E));
+      expect(resolved.borderColor, const Color(0x26F9F6F0));
+      expect(resolved.innerHighlightColor, const Color(0x1AFFFFFF));
+      expect(resolved.tints!.success, const Color(0x3795A584));
+    });
+
+    testWidgets('a light app gets the light base', (WidgetTester tester) async {
+      final CapsuleToastThemeData resolved = await resolveUnder(
+        tester,
+        ThemeData(brightness: Brightness.light),
+      );
+      expect(resolved.surfaceColor, const Color(0xFF161614));
+      expect(resolved.innerHighlightColor, isNull);
+    });
+
+    testWidgets('an extension still overrides the dark base', (
+      WidgetTester tester,
+    ) async {
+      const Color custom = Color(0xFF102030);
+      final CapsuleToastThemeData resolved = await resolveUnder(
+        tester,
+        ThemeData(
+          brightness: Brightness.dark,
+          extensions: <ThemeExtension<dynamic>>[
+            CapsuleToastThemeData(surfaceColor: custom),
+          ],
+        ),
+      );
+      // The override wins, and everything it did not state still comes from
+      // the dark base rather than reverting to light.
+      expect(resolved.surfaceColor, custom);
+      expect(resolved.foregroundColor, const Color(0xFFF7F4EE));
+      expect(resolved.innerHighlightColor, const Color(0x1AFFFFFF));
+    });
+
+    testWidgets('a full fallback extension pins the appearance', (
+      WidgetTester tester,
+    ) async {
+      final CapsuleToastThemeData resolved = await resolveUnder(
+        tester,
+        ThemeData(
+          brightness: Brightness.dark,
+          extensions: <ThemeExtension<dynamic>>[
+            CapsuleToastThemeData.fallback(Brightness.light),
+          ],
+        ),
+      );
+      expect(resolved.surfaceColor, const Color(0xFF161614));
+      expect(resolved.foregroundColor, const Color(0xFFF9F9F7));
+      expect(resolved.tints!.success, const Color(0x2995A584));
+    });
+
+    testWidgets('a nested CapsuleToastTheme still wins over both', (
+      WidgetTester tester,
+    ) async {
+      const Color local = Color(0xFF405060);
+      late CapsuleToastThemeData resolved;
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(brightness: Brightness.dark),
+          home: CapsuleToastTheme(
+            data: CapsuleToastThemeData(surfaceColor: local),
+            child: Builder(
+              builder: (BuildContext context) {
+                resolved = CapsuleToastTheme.resolve(context);
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+      expect(resolved.surfaceColor, local);
+      expect(resolved.foregroundColor, const Color(0xFFF7F4EE));
+    });
+  });
 }
