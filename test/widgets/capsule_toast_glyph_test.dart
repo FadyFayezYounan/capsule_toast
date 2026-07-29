@@ -98,4 +98,47 @@ void main() {
     );
     expect(tester.binding.transientCallbackCount, 0);
   });
+
+  testWidgets('a null size falls back to the glyph optical default', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      Center(
+        child: CapsuleToastGlyphIcon(
+          glyph: CapsuleToastGlyph.warning,
+          color: const Color(0xFF101010),
+          theme: CapsuleToastThemeData.fallback(),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(
+        find.byKey(const ValueKey<String>('capsule.warning.glyph')),
+      ),
+      const Size(17, 17),
+    );
+  });
+
+  testWidgets('an explicit size overrides the optical default', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      Center(
+        child: CapsuleToastGlyphIcon(
+          glyph: CapsuleToastGlyph.warning,
+          color: const Color(0xFF101010),
+          size: 24,
+          theme: CapsuleToastThemeData.fallback(),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(
+        find.byKey(const ValueKey<String>('capsule.warning.glyph')),
+      ),
+      const Size(24, 24),
+    );
+  });
 }

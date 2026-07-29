@@ -9,16 +9,16 @@ import '../model/capsule_toast_types.dart';
 import '../theme/capsule_toast_theme_data.dart';
 
 /// Structured semantic glyph for capsule toast content.
-class CapsuleToastGlyphWidget extends StatefulWidget {
-  /// Creates a glyph painted at [size] with [color].
-  const CapsuleToastGlyphWidget({
+class CapsuleToastGlyphIcon extends StatefulWidget {
+  /// Creates a capsule toast status glyph.
+  const CapsuleToastGlyphIcon({
     super.key,
     required this.glyph,
     required this.color,
-    required this.size,
     required this.theme,
+    this.size,
     this.tickerEnabled = true,
-  });
+  }) : assert(size == null || size > 0);
 
   /// Which glyph shape to draw.
   final CapsuleToastGlyph glyph;
@@ -26,25 +26,26 @@ class CapsuleToastGlyphWidget extends StatefulWidget {
   /// Stroke and fill color.
   final Color color;
 
-  /// Logical width and height of the glyph canvas.
-  final double size;
-
   /// Resolved theme providing optional custom builders.
   final CapsuleToastThemeData theme;
+
+  /// The logical width and height of the glyph canvas.
+  ///
+  /// If null, each glyph is painted at its own optical default.
+  final double? size;
 
   /// Whether loading spinners may attach a ticker.
   final bool tickerEnabled;
 
   @override
-  State<CapsuleToastGlyphWidget> createState() =>
-      _CapsuleToastGlyphWidgetState();
+  State<CapsuleToastGlyphIcon> createState() => _CapsuleToastGlyphIconState();
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties.add(EnumProperty<CapsuleToastGlyph>('glyph', glyph));
     properties.add(ColorProperty('color', color));
-    properties.add(DoubleProperty('size', size));
+    properties.add(DoubleProperty('size', size, defaultValue: null));
     properties.add(DiagnosticsProperty<bool>('tickerEnabled', tickerEnabled));
   }
 }
@@ -55,7 +56,7 @@ class CapsuleToastGlyphWidget extends StatefulWidget {
 // loading capsule reuses this element throughout. SingleTickerProviderStateMixin
 // hands out exactly one ticker per State for its whole lifetime — disposing the
 // controller does not give the slot back — so the second spinner would assert.
-class _CapsuleToastGlyphWidgetState extends State<CapsuleToastGlyphWidget>
+class _CapsuleToastGlyphIconState extends State<CapsuleToastGlyphIcon>
     with TickerProviderStateMixin {
   AnimationController? _controller;
 
@@ -66,7 +67,7 @@ class _CapsuleToastGlyphWidgetState extends State<CapsuleToastGlyphWidget>
   }
 
   @override
-  void didUpdateWidget(covariant CapsuleToastGlyphWidget oldWidget) {
+  void didUpdateWidget(covariant CapsuleToastGlyphIcon oldWidget) {
     super.didUpdateWidget(oldWidget);
     _syncController();
   }
@@ -95,29 +96,31 @@ class _CapsuleToastGlyphWidgetState extends State<CapsuleToastGlyphWidget>
 
   @override
   Widget build(BuildContext context) {
-    final CapsuleToastGlyphBuilder? builder = widget.theme.glyphBuilder;
-    if (builder != null &&
+    final double size =
+        widget.size ?? _CapsuleToastGlyphIconDefaults(widget.glyph).size;
+
+    final CapsuleToastGlyphBuilder? glyphBuilder = widget.theme.glyphBuilder;
+    if (glyphBuilder != null &&
         widget.glyph != CapsuleToastGlyph.loading &&
         widget.glyph != CapsuleToastGlyph.connectivity) {
-      return builder(context, widget.glyph, widget.color, widget.size);
+      return glyphBuilder(context, widget.glyph, widget.color, size);
     }
-    if (widget.glyph == CapsuleToastGlyph.loading) {
-      final CapsuleToastSpinnerBuilder? spinnerBuilder =
-          widget.theme.spinnerBuilder;
-      if (spinnerBuilder != null) {
-        return spinnerBuilder(context, widget.color, widget.size);
-      }
+
+    final CapsuleToastSpinnerBuilder? spinnerBuilder =
+        widget.theme.spinnerBuilder;
+    if (widget.glyph == CapsuleToastGlyph.loading && spinnerBuilder != null) {
+      return spinnerBuilder(context, widget.color, size);
     }
 
     return SizedBox(
-      width: widget.size,
-      height: widget.size,
       key: ValueKey<String>('capsule.${widget.glyph.name}.glyph'),
+      width: size,
+      height: size,
       child: CustomPaint(
         // The spinner repaints straight off the controller. Reading
         // `_controller.value` without subscribing to it is what left the
         // spinner frozen: the ticker ran, but nothing ever asked for a frame.
-        painter: _CapsuleGlyphPainter(
+        painter: _CapsuleToastGlyphPainter(
           glyph: widget.glyph,
           color: widget.color,
           rotation: _controller,
@@ -127,33 +130,14 @@ class _CapsuleToastGlyphWidgetState extends State<CapsuleToastGlyphWidget>
   }
 }
 
-/// Side length [glyph] is drawn at inside the tinted icon circle.
-///
-/// The reference sizes each glyph individually rather than normalising them:
-/// the check is the lightest shape so it can afford to be smallest, while the
-/// triangle and the signal arcs need the extra room to read at a glance. Every
-/// glyph shares the same 20-unit canvas, so this is purely optical balance.
-double capsuleToastGlyphSize(CapsuleToastGlyph glyph) {
-  return switch (glyph) {
-    CapsuleToastGlyph.success => 15,
-    CapsuleToastGlyph.information => 16,
-    CapsuleToastGlyph.warning => 17,
-    CapsuleToastGlyph.error => 16,
-    CapsuleToastGlyph.connectivity => 17,
-    CapsuleToastGlyph.loading => 18,
-    CapsuleToastGlyph.neutral => 16,
-    CapsuleToastGlyph.automatic => 16,
-  };
-}
-
 /// Paints one glyph inside a 20-unit canvas, matching the reference SVGs.
 ///
 /// Every path below is a transcription of the corresponding `<svg>` in the
 /// prototype, including its own stroke width — the reference varies stroke per
 /// path (a 2.3 checkmark beside a 1.7 circle), so a single shared width reads
 /// visibly wrong at these sizes.
-class _CapsuleGlyphPainter extends CustomPainter {
-  _CapsuleGlyphPainter({
+class _CapsuleToastGlyphPainter extends CustomPainter {
+  _CapsuleToastGlyphPainter({
     required this.glyph,
     required this.color,
     required this.rotation,
@@ -287,9 +271,32 @@ class _CapsuleGlyphPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _CapsuleGlyphPainter oldDelegate) {
+  bool shouldRepaint(covariant _CapsuleToastGlyphPainter oldDelegate) {
     return oldDelegate.glyph != glyph ||
         oldDelegate.color != color ||
         oldDelegate.rotation != rotation;
   }
+}
+
+// Hand coded defaults transcribed from the reference SVGs.
+//
+// The reference sizes each glyph individually rather than normalising them:
+// the check is the lightest shape so it can afford to be smallest, while the
+// triangle and the signal arcs need the extra room to read at a glance. Every
+// glyph shares the same 20-unit canvas, so this is purely optical balance.
+class _CapsuleToastGlyphIconDefaults {
+  const _CapsuleToastGlyphIconDefaults(this.glyph);
+
+  final CapsuleToastGlyph glyph;
+
+  double get size => switch (glyph) {
+    CapsuleToastGlyph.success => 15,
+    CapsuleToastGlyph.information => 16,
+    CapsuleToastGlyph.warning => 17,
+    CapsuleToastGlyph.error => 16,
+    CapsuleToastGlyph.connectivity => 17,
+    CapsuleToastGlyph.loading => 18,
+    CapsuleToastGlyph.neutral => 16,
+    CapsuleToastGlyph.automatic => 16,
+  };
 }
