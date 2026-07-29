@@ -77,6 +77,9 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
   bool _rtl = false;
   bool _reducedMotion = false;
   bool _dockOpen = true;
+  Brightness _appearance = Brightness.light;
+
+  bool get _isDark => _appearance == Brightness.dark;
   double _speed = 1;
   LabVariant? _lastFired;
   LabPhaseName _phase = LabPhaseName.hidden;
@@ -258,7 +261,20 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
-        LabPhoneFrame(child: _buildPhoneContents()),
+        LabPhoneFrame(dark: _isDark, child: _buildPhoneContents()),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: 260,
+          child: LabSegmentedPicker<Brightness>(
+            value: _appearance,
+            onChanged: (Brightness value) =>
+                setState(() => _appearance = value),
+            options: const <({Brightness value, String label})>[
+              (value: Brightness.light, label: 'Light app'),
+              (value: Brightness.dark, label: 'Dark app'),
+            ],
+          ),
+        ),
         const SizedBox(height: 14),
         _buildStateReadout(),
       ],
@@ -267,37 +283,43 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
 
   Widget _buildPhoneContents() {
     // The host reads the ambient MediaQuery, so the phone canvas supplies its
-    // own safe area and reduced-motion setting rather than the desktop window's.
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        size: Lab.phoneSize,
-        padding: const EdgeInsets.only(top: _phoneTopInset),
-        viewPadding: const EdgeInsets.only(top: _phoneTopInset),
-        viewInsets: EdgeInsets.zero,
-        disableAnimations: _reducedMotion,
-      ),
-      child: Directionality(
-        textDirection: _rtl ? TextDirection.rtl : TextDirection.ltr,
-        child: CapsuleToastHost(
-          child: Builder(
-            builder: (BuildContext hostContext) {
-              _manager ??= CapsuleToastHost.of(hostContext);
-              return Stack(
-                children: <Widget>[
-                  const Positioned.fill(child: LabPhoneScreen()),
-                  LabDemoDock(
-                    open: _dockOpen,
-                    onOpenChanged: (bool value) =>
-                        setState(() => _dockOpen = value),
-                    onFire: _fire,
-                    onFireExpanded: () => _fire(
-                      LabVariant.success,
-                      mode: CapsuleToastMode.expanded,
+    // own safe area and reduced-motion setting rather than the desktop
+    // window's. It supplies its own brightness for the same reason: the
+    // capsule resolves its appearance from the Theme it is shown under.
+    return Theme(
+      data: Theme.of(context).copyWith(brightness: _appearance),
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          size: Lab.phoneSize,
+          padding: const EdgeInsets.only(top: _phoneTopInset),
+          viewPadding: const EdgeInsets.only(top: _phoneTopInset),
+          viewInsets: EdgeInsets.zero,
+          disableAnimations: _reducedMotion,
+        ),
+        child: Directionality(
+          textDirection: _rtl ? TextDirection.rtl : TextDirection.ltr,
+          child: CapsuleToastHost(
+            child: Builder(
+              builder: (BuildContext hostContext) {
+                _manager ??= CapsuleToastHost.of(hostContext);
+                return Stack(
+                  children: <Widget>[
+                    Positioned.fill(child: LabPhoneScreen(dark: _isDark)),
+                    LabDemoDock(
+                      dark: _isDark,
+                      open: _dockOpen,
+                      onOpenChanged: (bool value) =>
+                          setState(() => _dockOpen = value),
+                      onFire: _fire,
+                      onFireExpanded: () => _fire(
+                        LabVariant.success,
+                        mode: CapsuleToastMode.expanded,
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -560,12 +582,14 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
           label: 'seed',
           dimensions: '84 × 34 · r 17',
           width: 84,
-          child: LabSpecimens.seed(),
+          brightness: _appearance,
+          child: LabSpecimens.seed(brightness: _appearance),
         ),
         const SizedBox(height: 12),
         LabSpecimen(
           label: 'compact',
           dimensions: 'content-driven · h 44 · r 22',
+          brightness: _appearance,
           child: LabSpecimens.compact(
             type: CapsuleToastType.success,
             title: labVariantCopy(LabVariant.success, rtl: false).title,
@@ -574,32 +598,38 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
               rtl: false,
             ).compactAction,
             direction: ltr,
+            brightness: _appearance,
           ),
         ),
         const SizedBox(height: 12),
         LabSpecimen(
           label: 'expanded',
           dimensions: '≤ 340 · h auto · r 34',
+          brightness: _appearance,
           child: LabSpecimens.expanded(
             type: CapsuleToastType.success,
             copy: labVariantCopy(LabVariant.success, rtl: false),
             direction: ltr,
+            brightness: _appearance,
           ),
         ),
         const SizedBox(height: 12),
         LabSpecimen(
           label: 'loading',
           dimensions: 'persistent · morphs into success',
+          brightness: _appearance,
           child: LabSpecimens.compact(
             type: CapsuleToastType.loading,
             title: labVariantCopy(LabVariant.loading, rtl: false).title,
             direction: ltr,
+            brightness: _appearance,
           ),
         ),
         const SizedBox(height: 12),
         LabSpecimen(
           label: 'compact · RTL mirrored',
           dimensions: 'origin stays centred',
+          brightness: _appearance,
           child: LabSpecimens.compact(
             type: CapsuleToastType.success,
             title: labVariantCopy(LabVariant.success, rtl: true).title,
@@ -608,6 +638,7 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
               rtl: true,
             ).compactAction,
             direction: TextDirection.rtl,
+            brightness: _appearance,
           ),
         ),
       ],

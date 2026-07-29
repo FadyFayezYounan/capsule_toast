@@ -8,10 +8,13 @@ import 'lab_variants.dart';
 /// Device frame that hosts the live capsule, matching the prototype canvas.
 class LabPhoneFrame extends StatelessWidget {
   /// Creates a phone frame wrapping [child].
-  const LabPhoneFrame({super.key, required this.child});
+  const LabPhoneFrame({super.key, required this.child, this.dark = false});
 
   /// Screen content, including the toast host.
   final Widget child;
+
+  /// Whether the previewed application is in its dark appearance.
+  final bool dark;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +22,7 @@ class LabPhoneFrame extends StatelessWidget {
       width: Lab.phoneSize.width,
       height: Lab.phoneSize.height,
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F7),
+        color: dark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
         borderRadius: BorderRadius.circular(48),
         boxShadow: const <BoxShadow>[
           BoxShadow(
@@ -60,6 +63,7 @@ class LabPhoneFrame extends StatelessWidget {
                 size: 17,
                 weight: FontWeight.w600,
                 height: 22 / 17,
+                color: dark ? Lab.darkInk : Lab.ink,
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -83,7 +87,9 @@ class LabPhoneFrame extends StatelessWidget {
                 width: 139,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: const Color(0x40000000),
+                  color: dark
+                      ? const Color(0x59FFFFFF)
+                      : const Color(0x40000000),
                   borderRadius: BorderRadius.circular(100),
                 ),
               ),
@@ -98,7 +104,10 @@ class LabPhoneFrame extends StatelessWidget {
 /// Placeholder app screen the capsule floats above.
 class LabPhoneScreen extends StatelessWidget {
   /// Creates the stand-in screen.
-  const LabPhoneScreen({super.key});
+  const LabPhoneScreen({super.key, this.dark = false});
+
+  /// Whether the previewed application is in its dark appearance.
+  final bool dark;
 
   static const List<({String title, String subtitle})> _rows =
       <({String title, String subtitle})>[
@@ -111,7 +120,7 @@ class LabPhoneScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Lab.bg,
+      color: dark ? Lab.darkBg : Lab.bg,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 110, 16, 0),
         child: Column(
@@ -123,6 +132,7 @@ class LabPhoneScreen extends StatelessWidget {
                 size: 30,
                 weight: FontWeight.w600,
                 letterSpacing: -1,
+                color: dark ? Lab.darkInk : Lab.ink,
               ),
             ),
             const SizedBox(height: 12),
@@ -136,9 +146,11 @@ class LabPhoneScreen extends StatelessWidget {
                     vertical: 13,
                   ),
                   decoration: BoxDecoration(
-                    color: Lab.card,
+                    color: dark ? Lab.darkCard : Lab.card,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Lab.hairline),
+                    border: Border.all(
+                      color: dark ? Lab.darkHairline : Lab.hairline,
+                    ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,12 +162,16 @@ class LabPhoneScreen extends StatelessWidget {
                           size: 14,
                           weight: FontWeight.w600,
                           letterSpacing: -0.2,
+                          color: dark ? Lab.darkInk : Lab.ink,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         row.subtitle,
-                        style: Lab.font(size: 12, color: Lab.muted),
+                        style: Lab.font(
+                          size: 12,
+                          color: dark ? Lab.darkMuted : Lab.muted,
+                        ),
                       ),
                     ],
                   ),
@@ -177,7 +193,11 @@ class LabDemoDock extends StatelessWidget {
     required this.onOpenChanged,
     required this.onFire,
     required this.onFireExpanded,
+    this.dark = false,
   });
+
+  /// Whether the previewed application is in its dark appearance.
+  final bool dark;
 
   /// Whether the dock is expanded.
   final bool open;
@@ -199,6 +219,13 @@ class LabDemoDock extends StatelessWidget {
   static const Color _chip = Color(0x1AF9F9F7);
   static const Color _fg = Color(0xFFF9F9F7);
 
+  // The reference dock lifts with the app: on a dark canvas the near-black
+  // panel would vanish, so it warms and lightens the same way the capsule does.
+  static const Color _darkChip = Color(0x21F9F6F0);
+  static const Color _darkPanel = Color(0xEB2C2822);
+  static const Color _darkRim = Color(0x24F9F6F0);
+  static const Color _darkShadow = Color(0x80000000);
+
   @override
   Widget build(BuildContext context) {
     return Positioned(
@@ -213,14 +240,14 @@ class LabDemoDock extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0xEB161614),
+        color: dark ? _darkPanel : const Color(0xEB161614),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0x14F9F9F7)),
-        boxShadow: const <BoxShadow>[
+        border: Border.all(color: dark ? _darkRim : const Color(0x14F9F9F7)),
+        boxShadow: <BoxShadow>[
           BoxShadow(
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
             blurRadius: 30,
-            color: Color(0x3D140E06),
+            color: dark ? _darkShadow : const Color(0x3D140E06),
           ),
         ],
       ),
@@ -299,7 +326,7 @@ class LabDemoDock extends StatelessWidget {
         alignment: Alignment.center,
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
-          color: _chip,
+          color: dark ? _darkChip : _chip,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
@@ -326,9 +353,11 @@ class LabDemoDock extends StatelessWidget {
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: const Color(0xE6161614),
+            color: dark ? _darkPanel : const Color(0xE6161614),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0x14F9F9F7)),
+            border: Border.all(
+              color: dark ? _darkRim : const Color(0x14F9F9F7),
+            ),
           ),
           child: Text(
             'Show demo triggers',

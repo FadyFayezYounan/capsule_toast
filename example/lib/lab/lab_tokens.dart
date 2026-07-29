@@ -30,6 +30,25 @@ abstract final class Lab {
   /// Inactive toggle track, `rgba(60,45,30,0.14)`.
   static const Color toggleTrack = Color(0x243C2D1E);
 
+  // ── Dark app surfaces ──
+  // From the reference dark token sheet. These dress the phone canvas only;
+  // the lab chrome around it stays light on purpose.
+
+  /// Neutral charcoal app background.
+  static const Color darkBg = Color(0xFF20201E);
+
+  /// Raised card / row fill.
+  static const Color darkCard = Color(0xFF2C2C2A);
+
+  /// Hairline stroke, `rgba(249,249,247,0.10)`.
+  static const Color darkHairline = Color(0x1AF9F9F7);
+
+  /// Primary text on charcoal.
+  static const Color darkInk = Color(0xFFF9F9F7);
+
+  /// Muted body text on charcoal.
+  static const Color darkMuted = Color(0xFF9A9A94);
+
   // ── Type ──
   /// Charcoal primary text.
   static const Color ink = Color(0xFF1F1A14);
