@@ -24,8 +24,4 @@ topics:
   - animation
   - ui
 
-screenshots:
-  - description: Compact and expanded capsule toast states.
-    path: doc/capsule_toast_overview.png
-
 flutter:
