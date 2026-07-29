@@ -18,7 +18,7 @@ import 'package:capsule_toast/src/widgets/capsule_toast_surface.dart';
 export 'package:capsule_toast/src/motion/capsule_motion_controller.dart'
     show CapsuleMotionController, CapsuleMotionSnapshot;
 export 'package:capsule_toast/src/widgets/capsule_toast_surface.dart'
-    show capsuleSurfaceKey;
+    show capsuleHighlightKey, capsuleSurfaceKey;
 
 /// No-op action callback for const test fixtures.
 void noop() {}
@@ -87,6 +87,7 @@ Future<BuildContext> pumpToast(
   WidgetTester tester,
   CapsuleToastData toast, {
   bool settle = true,
+  Brightness brightness = Brightness.light,
   TextDirection textDirection = TextDirection.ltr,
   TextScaler textScaler = TextScaler.noScaling,
   bool disableAnimations = false,
@@ -95,6 +96,7 @@ Future<BuildContext> pumpToast(
   late BuildContext commandContext;
   await tester.pumpWidget(
     MaterialApp(
+      theme: ThemeData(brightness: brightness),
       builder: (BuildContext context, Widget? child) {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
@@ -137,6 +139,7 @@ Future<ToastTestHarness> pumpToastHarness(
   WidgetTester tester,
   CapsuleToastData toast, {
   bool settle = true,
+  Brightness brightness = Brightness.light,
   bool disableAnimations = false,
   TextDirection textDirection = TextDirection.ltr,
   TextScaler textScaler = TextScaler.noScaling,
@@ -145,6 +148,7 @@ Future<ToastTestHarness> pumpToastHarness(
     tester,
     toast,
     settle: settle,
+    brightness: brightness,
     disableAnimations: disableAnimations,
     textDirection: textDirection,
     textScaler: textScaler,

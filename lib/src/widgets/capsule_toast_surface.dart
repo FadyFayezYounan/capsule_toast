@@ -11,6 +11,9 @@ import '../theme/capsule_toast_theme_data.dart';
 /// Key identifying the live capsule surface for tests and diagnostics.
 const Key capsuleSurfaceKey = ValueKey<String>('capsule_toast.surface');
 
+/// Key identifying the inner rim highlight painted on the capsule surface.
+const Key capsuleHighlightKey = ValueKey<String>('capsule_toast.highlight');
+
 /// Decorated, clipped capsule chrome around structured toast content.
 class CapsuleToastSurface extends StatelessWidget {
   /// Creates a capsule surface styled with resolved [theme].
@@ -177,6 +180,22 @@ class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
       );
     }
 
+    Widget clipped = ClipRRect(borderRadius: borderRadius, child: content);
+    if (widget.theme.innerHighlightColor case final Color highlight) {
+      // Built only when the appearance asks for it, so the light capsule pays
+      // nothing for a rim it does not have.
+      clipped = CustomPaint(
+        key: capsuleHighlightKey,
+        foregroundPainter: _CapsuleInnerHighlightPainter(
+          color: highlight,
+          width: widget.theme.innerHighlightWidth ?? widget.theme.borderWidth!,
+          borderWidth: widget.theme.borderWidth!,
+          radius: radius,
+        ),
+        child: clipped,
+      );
+    }
+
     // Fill, hairline and shadow belong to the capsule, so they are painted on
     // this box and the clip goes inside them. Clipping the decoration instead
     // would pin the visible pill to the content's size — it would snap to the
@@ -193,7 +212,66 @@ class _CapsuleToastSurfaceBodyState extends State<_CapsuleToastSurfaceBody> {
         borderRadius: borderRadius,
         boxShadow: widget.theme.shadows,
       ),
-      child: ClipRRect(borderRadius: borderRadius, child: content),
+      child: clipped,
     );
+  }
+}
+
+/// Paints the reference's `inset 0 Npx 0` rim highlight along the top curve.
+///
+/// [BoxDecoration] has no inset shadow. For an inset shadow with a vertical
+/// offset and no blur or spread, the lit region is the padding-box shape minus
+/// that same shape shifted down by the offset — a sliver that follows the top
+/// curve and tapers to nothing at the sides. Painting that difference gives the
+/// CSS geometry itself rather than a gradient standing in for it.
+class _CapsuleInnerHighlightPainter extends CustomPainter {
+  const _CapsuleInnerHighlightPainter({
+    required this.color,
+    required this.width,
+    required this.borderWidth,
+    required this.radius,
+  });
+
+  /// Highlight colour, including its alpha.
+  final Color color;
+
+  /// Vertical offset of the inset shadow, and so the sliver's thickness.
+  final double width;
+
+  /// Border thickness the highlight sits inside of.
+  final double borderWidth;
+
+  /// Outer corner radius of the capsule.
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (width <= 0 || color.a == 0) {
+      return;
+    }
+    // The reference draws the highlight inside the border rather than on top
+    // of it, so the shape is the padding box, not the border box.
+    final Rect bounds = (Offset.zero & size).deflate(borderWidth);
+    if (bounds.isEmpty) {
+      return;
+    }
+    final RRect inner = RRect.fromRectAndRadius(
+      bounds,
+      Radius.circular(math.max(0, radius - borderWidth)),
+    );
+    final Path sliver = Path.combine(
+      PathOperation.difference,
+      Path()..addRRect(inner),
+      Path()..addRRect(inner.shift(Offset(0, width))),
+    );
+    canvas.drawPath(sliver, Paint()..color = color);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CapsuleInnerHighlightPainter oldDelegate) {
+    return color != oldDelegate.color ||
+        width != oldDelegate.width ||
+        borderWidth != oldDelegate.borderWidth ||
+        radius != oldDelegate.radius;
   }
 }
