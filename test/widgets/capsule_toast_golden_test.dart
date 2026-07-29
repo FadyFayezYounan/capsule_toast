@@ -153,4 +153,22 @@ void main() {
       matchesGoldenFile('goldens/capsule_toast_reduced_motion.png'),
     );
   });
+
+  testWidgets('dark semantic states match the reference', (
+    WidgetTester tester,
+  ) async {
+    await pumpGoldenGrid(tester, <CapsuleToastData>[
+      CapsuleToastData.success(title: 'Saved'),
+      CapsuleToastData.information(title: 'New information'),
+      CapsuleToastData.warning(title: 'Connection unstable'),
+      CapsuleToastData.error(title: 'Upload failed'),
+      CapsuleToastData.loading(title: 'Uploading'),
+      CapsuleToastData.neutral(title: 'Draft available'),
+    ], brightness: Brightness.dark);
+
+    await expectLater(
+      find.byKey(goldenBoundaryKey),
+      matchesGoldenFile('goldens/capsule_toast_dark_states.png'),
+    );
+  });
 }
