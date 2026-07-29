@@ -1,6 +1,7 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
@@ -94,7 +95,7 @@ void main() {
       tester,
       CapsuleToastData.success(
         title: 'Reduced by override',
-        motionTheme: const CapsuleToastMotionTheme(
+        motionTheme: CapsuleToastMotionTheme(
           reducedMotionPolicy: CapsuleToastReducedMotionPolicy.always,
         ),
       ),
@@ -141,5 +142,37 @@ void main() {
 
     expect(tester.getSize(find.byKey(capsuleSurfaceKey)).width, lessThan(208));
     expect(tester.element(find.byKey(capsuleSurfaceKey)), same(surfaceBefore));
+  });
+
+  testWidgets('keyboard traversal reaches the capsule surface and toggles it', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.information(
+        title: 'Keyboard details',
+        message: 'Expanded supporting information.',
+        persistent: true,
+      ),
+    );
+    final double compactHeight = capsuleSize(tester).height;
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'capsule_toast.surface',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 520));
+    final double expandedHeight = capsuleSize(tester).height;
+
+    expect(expandedHeight, greaterThan(compactHeight));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 520));
+
+    expect(capsuleSize(tester).height, closeTo(compactHeight, 1));
   });
 }

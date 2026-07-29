@@ -2,6 +2,32 @@
 
 Motion and chrome now track the reference design frame for frame.
 
+Correctness and package hardening:
+
+- Theme springs, durations, slot delays, visual paddings, seed dimensions, and
+  toast text/data invariants are now validated at their construction boundary,
+  including values produced through `copyWith`.
+- `CapsuleToastThemeData`, `CapsuleToastMotionTheme`, and
+  `CapsuleToastSpring` constructors are no longer `const`, allowing complete
+  validation and defensive collection copies. Constructor names and arguments
+  are unchanged; remove explicit `const` from existing call sites.
+- Partial motion themes now interpolate without null-assertion failures, and
+  equal slot-delay maps produce equal hashes regardless of insertion order.
+- Theme-owned slot-delay maps and shadow lists are detached from caller-owned
+  mutable collections and exposed as unmodifiable values.
+- Custom builders are mode-specific; a missing compact or expanded builder
+  falls back to structured content for that mode.
+- Per-toast and ambient `seedSize` overrides now drive the actual entrance and
+  exit geometry.
+- The capsule surface is keyboard-traversable before its action controls.
+- Settled pointer-paused motion and custom loading spinners no longer retain
+  unused tickers.
+- The example queue demonstration explicitly enqueues its waiting events,
+  handles constrained widths without overflow, and has a current behavioral
+  smoke test.
+- Corrected the README's default-replacement queue contract and package
+  version, and excluded generated/local artifacts from publish archives.
+
 - Replaced `Curves.easeOut` with the reference's exact cubic ease-out
   (`1 - (1 - t)³`) across the appearance, content reveal, retract, and exit
   fade envelopes. The Bézier approximation Flutter ships decelerates on a

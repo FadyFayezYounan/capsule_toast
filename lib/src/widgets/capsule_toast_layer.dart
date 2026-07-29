@@ -77,7 +77,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   bool _resolveHapticPending = false;
   final FocusNode _capsuleFocusNode = FocusNode(
     debugLabel: 'capsule_toast.surface',
-  )..skipTraversal = true;
+  );
   final FocusScopeNode _toastFocusScope = FocusScopeNode(
     debugLabel: 'capsule_toast.scope',
   );
@@ -195,6 +195,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _motion.setReducedMotion(_isReducedMotion(motionTheme));
 
     final Size seed = visualTheme.seedSize ?? const Size(84, 34);
+    _motion.updateSeedSize(seed);
     final Size target = _measuredSize ?? seed;
     final Duration? holdDuration = _resolveHoldDuration(
       record.data,
@@ -208,11 +209,11 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     if (!_motionStarted || tokenChanged) {
       if (_motionStarted && tokenChanged) {
         // A new token is a new event, never a continuation of the old one, so
-        // it always re-seeds: geometry snaps back to 84x34 at zero opacity and
-        // replays the entrance. The reference gets this from swapping `item`
-        // identity, which re-runs its seeding effect. Sizes measured for the
-        // outgoing content are dropped — the probes report the incoming
-        // content's own sizes on the next layout.
+        // it always re-seeds: geometry snaps back to the resolved theme seed at
+        // zero opacity and replays the entrance. The reference gets this from
+        // swapping `item` identity, which re-runs its seeding effect. Sizes
+        // measured for the outgoing content are dropped — the probes report
+        // the incoming content's own sizes on the next layout.
         _measuredSize = null;
         _compactSize = null;
         _expandedSize = null;
@@ -238,18 +239,15 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       _dragDy = 0;
       _dragging = false;
       _longPressActive = false;
-      final bool hasActions =
-          record.data.compactAction != null ||
-          record.data.primaryAction != null ||
-          record.data.secondaryAction != null;
-      if (hasActions) {
-        WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-          if (!mounted || _activeToken != record.token) {
-            return;
-          }
-          _toastFocusScope.requestFocus();
-        });
-      }
+      WidgetsBinding.instance.addPostFrameCallback((Duration _) {
+        if (!mounted || _activeToken != record.token) {
+          return;
+        }
+        // The overlay sits beside the route's modal focus scope, so traversal
+        // cannot discover it from the route. Focus the toast scope first;
+        // the next Tab then reaches the capsule surface followed by actions.
+        _toastFocusScope.requestFocus();
+      });
     } else if (revisionChanged) {
       _motion.resolve(
         target: target,

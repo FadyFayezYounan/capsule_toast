@@ -162,8 +162,9 @@ abstract final class LabSpecimens {
                     ],
                     if (copy.action != null) ...<Widget>[
                       SizedBox(height: theme.actionTopSpacing),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
+                      Wrap(
+                        spacing: theme.actionSpacing!,
+                        runSpacing: 8,
                         children: <Widget>[
                           _pill(
                             label: copy.action!,
@@ -173,7 +174,6 @@ abstract final class LabSpecimens {
                             padding: theme.primaryActionPadding!,
                             height: theme.expandedActionHeight!,
                           ),
-                          SizedBox(width: theme.actionSpacing),
                           _pill(
                             label: direction == TextDirection.rtl
                                 ? 'تجاهل'

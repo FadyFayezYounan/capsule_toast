@@ -186,8 +186,14 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
       buildLabToast(LabVariant.saved, rtl: _rtl),
       queuePolicy: CapsuleToastQueuePolicy.clearAndShow,
     );
-    manager.show(buildLabToast(LabVariant.completed, rtl: _rtl));
-    manager.show(buildLabToast(LabVariant.online, rtl: _rtl));
+    manager.show(
+      buildLabToast(LabVariant.completed, rtl: _rtl),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
+    manager.show(
+      buildLabToast(LabVariant.online, rtl: _rtl),
+      queuePolicy: CapsuleToastQueuePolicy.enqueue,
+    );
     _setPhase(LabPhaseName.seed);
     _later(
       const Duration(milliseconds: 120),

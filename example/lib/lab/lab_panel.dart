@@ -534,8 +534,10 @@ class LabSpecimen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        Wrap(
+          spacing: 8,
+          runSpacing: 2,
+          crossAxisAlignment: WrapCrossAlignment.end,
           children: <Widget>[
             Text(
               label,
@@ -545,7 +547,6 @@ class LabSpecimen extends StatelessWidget {
                 letterSpacing: -0.1,
               ),
             ),
-            const SizedBox(width: 8),
             Text(dimensions, style: Lab.font(size: 10.5, color: Lab.muted2)),
           ],
         ),

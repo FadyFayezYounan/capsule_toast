@@ -305,7 +305,7 @@ class CapsuleToastTints with Diagnosticable {
 class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     with Diagnosticable {
   /// Creates optional visual overrides validated at construction time.
-  const CapsuleToastThemeData({
+  CapsuleToastThemeData({
     this.surfaceColor,
     this.foregroundColor,
     this.secondaryForegroundColor,
@@ -314,7 +314,7 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     this.actionSurfaceColor,
     this.accents,
     this.tints,
-    this.shadows,
+    List<BoxShadow>? shadows,
     this.titleTextStyle,
     this.expandedTitleTextStyle,
     this.messageTextStyle,
@@ -346,12 +346,25 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
     this.secondaryActionStyle,
     this.useSafeArea,
     this.verticalOffset,
-  }) : assert(borderWidth == null || borderWidth >= 0),
+  }) : shadows = shadows == null ? null : List<BoxShadow>.unmodifiable(shadows),
+       assert(borderWidth == null || borderWidth >= 0),
+       assert(
+         compactPadding == null || compactPadding.isNonNegative,
+         'CapsuleToastThemeData.compactPadding must be non-negative.',
+       ),
+       assert(
+         expandedPadding == null || expandedPadding.isNonNegative,
+         'CapsuleToastThemeData.expandedPadding must be non-negative.',
+       ),
        assert(compactSpacing == null || compactSpacing >= 0),
        assert(expandedSpacing == null || expandedSpacing >= 0),
        assert(messageSpacing == null || messageSpacing >= 0),
        assert(actionSpacing == null || actionSpacing >= 0),
        assert(actionTopSpacing == null || actionTopSpacing >= 0),
+       assert(
+         seedSize == null || seedSize.width > 0 && seedSize.height > 0,
+         'CapsuleToastThemeData.seedSize must have positive dimensions.',
+       ),
        assert(compactMinimumHeight == null || compactMinimumHeight > 0),
        assert(maximumWidth == null || maximumWidth > 0),
        assert(horizontalInset == null || horizontalInset >= 0),
@@ -360,7 +373,19 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
        assert(expandedIconSize == null || expandedIconSize > 0),
        assert(compactTitleMaximumWidth == null || compactTitleMaximumWidth > 0),
        assert(compactActionHeight == null || compactActionHeight > 0),
-       assert(expandedActionHeight == null || expandedActionHeight > 0);
+       assert(expandedActionHeight == null || expandedActionHeight > 0),
+       assert(
+         compactActionPadding == null || compactActionPadding.isNonNegative,
+         'CapsuleToastThemeData.compactActionPadding must be non-negative.',
+       ),
+       assert(
+         primaryActionPadding == null || primaryActionPadding.isNonNegative,
+         'CapsuleToastThemeData.primaryActionPadding must be non-negative.',
+       ),
+       assert(
+         secondaryActionPadding == null || secondaryActionPadding.isNonNegative,
+         'CapsuleToastThemeData.secondaryActionPadding must be non-negative.',
+       );
 
   static const Color _shadowColor = Color.fromRGBO(20, 14, 6, 0.16);
 
@@ -517,6 +542,8 @@ class CapsuleToastThemeData extends ThemeExtension<CapsuleToastThemeData>
   final CapsuleToastTints? tints;
 
   /// Drop shadows behind the capsule.
+  ///
+  /// The supplied list is defensively copied into an unmodifiable list.
   final List<BoxShadow>? shadows;
 
   /// Title typography.

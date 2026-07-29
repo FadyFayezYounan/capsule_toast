@@ -188,21 +188,6 @@ class CapsuleToastContent extends StatelessWidget {
         ),
       );
     }
-    if (data.compactBuilder != null) {
-      return data.compactBuilder!(
-        context,
-        CapsuleToastContentContext(
-          toast: data,
-          mode: CapsuleToastMode.expanded,
-          visualTheme: visualTheme,
-          motionTheme: motionTheme,
-          manager: coordinator,
-          handle: record.handle,
-          constraints: constraints,
-        ),
-      );
-    }
-
     final TextStyle titleStyle =
         (visualTheme.expandedTitleTextStyle ?? visualTheme.titleTextStyle!)
             .copyWith(color: visualTheme.foregroundColor);

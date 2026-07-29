@@ -41,7 +41,15 @@ Duration capsuleToastRetractDuration({required bool reducedMotion}) {
 @immutable
 class CapsuleToastSpring with Diagnosticable {
   /// Creates spring timing with positive [duration] and [bounce] in `[0, 1)`.
-  const CapsuleToastSpring({required this.duration, required this.bounce});
+  CapsuleToastSpring({required this.duration, required this.bounce})
+    : assert(
+        duration > Duration.zero,
+        'CapsuleToastSpring.duration must be greater than zero.',
+      ),
+      assert(
+        bounce >= 0 && bounce < 1,
+        'CapsuleToastSpring.bounce must be in the range [0, 1).',
+      );
 
   /// Total perceptual duration of the spring.
   final Duration duration;
@@ -116,7 +124,7 @@ class CapsuleToastSpring with Diagnosticable {
 class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     with Diagnosticable {
   /// Creates optional motion overrides validated at construction time.
-  const CapsuleToastMotionTheme({
+  CapsuleToastMotionTheme({
     this.appearanceDuration,
     this.widthSpring,
     this.heightSpring,
@@ -125,7 +133,7 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     this.exitSpring,
     this.reducedMotionSizeDuration,
     this.slotRevealDuration,
-    this.slotDelays,
+    Map<CapsuleToastSlot, Duration>? slotDelays,
     this.successDuration,
     this.informationDuration,
     this.warningDuration,
@@ -137,12 +145,19 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     this.downwardDragResistance,
     this.hapticPolicy,
     this.reducedMotionPolicy,
-  }) : assert(appearanceDuration == null || appearanceDuration > Duration.zero),
+  }) : slotDelays = slotDelays == null
+           ? null
+           : Map<CapsuleToastSlot, Duration>.unmodifiable(slotDelays),
+       assert(appearanceDuration == null || appearanceDuration > Duration.zero),
        assert(
          reducedMotionSizeDuration == null ||
              reducedMotionSizeDuration > Duration.zero,
        ),
        assert(slotRevealDuration == null || slotRevealDuration > Duration.zero),
+       assert(
+         slotDelays == null || _hasNonNegativeSlotDelays(slotDelays),
+         'CapsuleToastMotionTheme.slotDelays cannot contain negative values.',
+       ),
        assert(heightLead == null || heightLead >= Duration.zero),
        assert(successDuration == null || successDuration > Duration.zero),
        assert(
@@ -227,6 +242,8 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
   final Duration? slotRevealDuration;
 
   /// Staggered delays before each content slot reveals.
+  ///
+  /// The supplied map is defensively copied into an unmodifiable map.
   final Map<CapsuleToastSlot, Duration>? slotDelays;
 
   /// Default visible duration for success toasts.
@@ -366,12 +383,10 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
       return this;
     }
     return CapsuleToastMotionTheme(
-      appearanceDuration: Duration(
-        microseconds: lerpDouble(
-          appearanceDuration!.inMicroseconds.toDouble(),
-          other.appearanceDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
+      appearanceDuration: _lerpDuration(
+        appearanceDuration,
+        other.appearanceDuration,
+        t,
       ),
       widthSpring: CapsuleToastSpring.lerp(widthSpring, other.widthSpring, t),
       heightSpring: CapsuleToastSpring.lerp(
@@ -379,75 +394,37 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
         other.heightSpring,
         t,
       ),
-      heightLead: Duration(
-        microseconds: lerpDouble(
-          heightLead!.inMicroseconds.toDouble(),
-          other.heightLead!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
-      ),
+      heightLead: _lerpDuration(heightLead, other.heightLead, t),
       interactiveSpring: CapsuleToastSpring.lerp(
         interactiveSpring,
         other.interactiveSpring,
         t,
       ),
       exitSpring: CapsuleToastSpring.lerp(exitSpring, other.exitSpring, t),
-      reducedMotionSizeDuration: Duration(
-        microseconds: lerpDouble(
-          reducedMotionSizeDuration!.inMicroseconds.toDouble(),
-          other.reducedMotionSizeDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
+      reducedMotionSizeDuration: _lerpDuration(
+        reducedMotionSizeDuration,
+        other.reducedMotionSizeDuration,
+        t,
       ),
-      slotRevealDuration: Duration(
-        microseconds: lerpDouble(
-          slotRevealDuration!.inMicroseconds.toDouble(),
-          other.slotRevealDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
+      slotRevealDuration: _lerpDuration(
+        slotRevealDuration,
+        other.slotRevealDuration,
+        t,
       ),
-      slotDelays: t < 0.5 ? slotDelays : other.slotDelays,
-      successDuration: Duration(
-        microseconds: lerpDouble(
-          successDuration!.inMicroseconds.toDouble(),
-          other.successDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
+      slotDelays: _lerpDiscrete(slotDelays, other.slotDelays, t),
+      successDuration: _lerpDuration(successDuration, other.successDuration, t),
+      informationDuration: _lerpDuration(
+        informationDuration,
+        other.informationDuration,
+        t,
       ),
-      informationDuration: Duration(
-        microseconds: lerpDouble(
-          informationDuration!.inMicroseconds.toDouble(),
-          other.informationDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
-      ),
-      warningDuration: Duration(
-        microseconds: lerpDouble(
-          warningDuration!.inMicroseconds.toDouble(),
-          other.warningDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
-      ),
-      errorDuration: Duration(
-        microseconds: lerpDouble(
-          errorDuration!.inMicroseconds.toDouble(),
-          other.errorDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
-      ),
-      neutralDuration: Duration(
-        microseconds: lerpDouble(
-          neutralDuration!.inMicroseconds.toDouble(),
-          other.neutralDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
-      ),
-      longPressDuration: Duration(
-        microseconds: lerpDouble(
-          longPressDuration!.inMicroseconds.toDouble(),
-          other.longPressDuration!.inMicroseconds.toDouble(),
-          t,
-        )!.round(),
+      warningDuration: _lerpDuration(warningDuration, other.warningDuration, t),
+      errorDuration: _lerpDuration(errorDuration, other.errorDuration, t),
+      neutralDuration: _lerpDuration(neutralDuration, other.neutralDuration, t),
+      longPressDuration: _lerpDuration(
+        longPressDuration,
+        other.longPressDuration,
+        t,
       ),
       dismissalDistance: lerpDouble(
         dismissalDistance,
@@ -464,10 +441,12 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
         other.downwardDragResistance,
         t,
       ),
-      hapticPolicy: t < 0.5 ? hapticPolicy : other.hapticPolicy,
-      reducedMotionPolicy: t < 0.5
-          ? reducedMotionPolicy
-          : other.reducedMotionPolicy,
+      hapticPolicy: _lerpDiscrete(hapticPolicy, other.hapticPolicy, t),
+      reducedMotionPolicy: _lerpDiscrete(
+        reducedMotionPolicy,
+        other.reducedMotionPolicy,
+        t,
+      ),
     );
   }
 
@@ -589,7 +568,7 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     exitSpring,
     reducedMotionSizeDuration,
     slotRevealDuration,
-    slotDelays == null ? null : Object.hashAll(slotDelays!.entries),
+    _slotDelaysHash(slotDelays),
     successDuration,
     informationDuration,
     warningDuration,
@@ -602,6 +581,50 @@ class CapsuleToastMotionTheme extends ThemeExtension<CapsuleToastMotionTheme>
     hapticPolicy,
     reducedMotionPolicy,
   ]);
+}
+
+bool _hasNonNegativeSlotDelays(Map<CapsuleToastSlot, Duration> slotDelays) {
+  return slotDelays.values.every((Duration delay) => !delay.isNegative);
+}
+
+Duration? _lerpDuration(Duration? a, Duration? b, double t) {
+  if (identical(a, b)) {
+    return a;
+  }
+  if (a == null) {
+    return b;
+  }
+  if (b == null) {
+    return a;
+  }
+  return Duration(
+    microseconds: lerpDouble(
+      a.inMicroseconds.toDouble(),
+      b.inMicroseconds.toDouble(),
+      t,
+    )!.round(),
+  );
+}
+
+T? _lerpDiscrete<T>(T? a, T? b, double t) {
+  if (a == null) {
+    return b;
+  }
+  if (b == null) {
+    return a;
+  }
+  return t < 0.5 ? a : b;
+}
+
+int? _slotDelaysHash(Map<CapsuleToastSlot, Duration>? slotDelays) {
+  if (slotDelays == null) {
+    return null;
+  }
+  return Object.hashAll(
+    CapsuleToastSlot.values.map(
+      (CapsuleToastSlot slot) => Object.hash(slot, slotDelays[slot]),
+    ),
+  );
 }
 
 bool _mapEquals<K, V>(Map<K, V>? a, Map<K, V>? b) {

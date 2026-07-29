@@ -71,4 +71,31 @@ void main() {
 
     expect(first, equals(second));
   });
+
+  testWidgets('custom loading spinner does not start the built-in ticker', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.loading(
+        title: 'Custom loading',
+        theme: CapsuleToastThemeData(
+          spinnerBuilder: (BuildContext context, Color color, double size) {
+            return SizedBox(
+              key: const ValueKey<String>('custom-spinner'),
+              width: size,
+              height: size,
+            );
+          },
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      find.byKey(const ValueKey<String>('custom-spinner')),
+      findsOneWidget,
+    );
+    expect(tester.binding.transientCallbackCount, 0);
+  });
 }

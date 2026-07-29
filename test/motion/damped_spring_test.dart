@@ -10,10 +10,7 @@ void main() {
       ..retarget(280)
       ..advance(
         const Duration(milliseconds: 80),
-        const CapsuleToastSpring(
-          duration: Duration(milliseconds: 420),
-          bounce: 0.16,
-        ),
+        CapsuleToastSpring(duration: Duration(milliseconds: 420), bounce: 0.16),
       );
     final double velocityBeforeRetarget = spring.velocity;
 
@@ -24,7 +21,7 @@ void main() {
   });
 
   test('large frame gaps produce the same bounded integration', () {
-    const CapsuleToastSpring description = CapsuleToastSpring(
+    final CapsuleToastSpring description = CapsuleToastSpring(
       duration: Duration(milliseconds: 400),
       bounce: 0.12,
     );
@@ -43,10 +40,7 @@ void main() {
     for (int index = 0; index < 300; index += 1) {
       spring.advance(
         const Duration(milliseconds: 4),
-        const CapsuleToastSpring(
-          duration: Duration(milliseconds: 300),
-          bounce: 0,
-        ),
+        CapsuleToastSpring(duration: Duration(milliseconds: 300), bounce: 0),
       );
     }
 

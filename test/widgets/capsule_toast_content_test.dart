@@ -143,4 +143,55 @@ void main() {
     );
     expect((box.decoration as BoxDecoration).color, override);
   });
+
+  testWidgets('expanded mode does not reuse a compact custom builder', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.custom(
+        title: 'Structured expanded fallback',
+        initialMode: CapsuleToastMode.expanded,
+        compactBuilder:
+            (BuildContext context, CapsuleToastContentContext details) {
+              return const SizedBox(
+                key: ValueKey<String>('compact-builder-marker'),
+                width: 180,
+                height: 44,
+              );
+            },
+      ),
+    );
+
+    expect(find.text('Structured expanded fallback'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('compact-builder-marker')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('compact mode does not reuse an expanded custom builder', (
+    WidgetTester tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.custom(
+        title: 'Structured compact fallback',
+        expandedBuilder:
+            (BuildContext context, CapsuleToastContentContext details) {
+              return const SizedBox(
+                key: ValueKey<String>('expanded-builder-marker'),
+                width: 240,
+                height: 96,
+              );
+            },
+      ),
+    );
+
+    expect(find.text('Structured compact fallback'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('expanded-builder-marker')),
+      findsNothing,
+    );
+  });
 }

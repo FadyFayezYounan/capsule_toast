@@ -9,7 +9,7 @@ Brand-neutral morphing capsule notifications for Flutter.
 - Top-center morphing capsule with interruptible spring motion
 - Structured semantic factories: success, information, warning, error, loading,
   neutral, and custom
-- FIFO queueing with replace and clear-and-show policies
+- Explicit FIFO queueing with replace and clear-and-show policies
 - Live handle commands: expand, collapse, resolve, dismiss
 - Loading toast resolution that preserves the same handle
 - Visual and motion themes via `ThemeExtension` and `CapsuleToastTheme`
@@ -21,7 +21,7 @@ Brand-neutral morphing capsule notifications for Flutter.
 
 ```yaml
 dependencies:
-  capsule_toast: ^0.1.0
+  capsule_toast: ^0.2.0
 ```
 
 ```bash
@@ -71,7 +71,9 @@ Other factories: `information`, `warning`, `error`, `loading`, `neutral`, and
 
 ## Queue policy
 
-By default, toasts enqueue behind the active capsule.
+By default, a new toast replaces the active capsule. Pass
+`CapsuleToastQueuePolicy.enqueue` explicitly when events must wait in FIFO
+order.
 
 ```dart
 final CapsuleToastManager manager = CapsuleToastHost.of(context);

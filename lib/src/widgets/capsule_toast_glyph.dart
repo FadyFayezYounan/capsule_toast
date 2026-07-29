@@ -67,7 +67,9 @@ class _CapsuleToastGlyphWidgetState extends State<CapsuleToastGlyphWidget>
 
   void _syncController() {
     final bool needsTicker =
-        widget.tickerEnabled && widget.glyph == CapsuleToastGlyph.loading;
+        widget.tickerEnabled &&
+        widget.glyph == CapsuleToastGlyph.loading &&
+        widget.theme.spinnerBuilder == null;
     if (needsTicker) {
       _controller ??= AnimationController(
         vsync: this,

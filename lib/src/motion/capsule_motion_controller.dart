@@ -83,6 +83,7 @@ final class CapsuleMotionController extends ChangeNotifier {
   final LifecycleClock _holdClock = LifecycleClock();
 
   CapsuleToastMotionTheme _motionTheme;
+  Size _seedSize = const Size(_seedWidth, _seedHeight);
   Ticker? _ticker;
   Duration _lastElapsed = Duration.zero;
 
@@ -149,6 +150,17 @@ final class CapsuleMotionController extends ChangeNotifier {
   /// Directional content travel remaining for tests.
   @visibleForTesting
   Offset get debugContentTravel => _contentTravel;
+
+  /// Updates the seed geometry used by the next entrance and exit.
+  ///
+  /// Updating the seed does not retarget a currently visible capsule.
+  void updateSeedSize(Size seedSize) {
+    assert(
+      seedSize.width > 0 && seedSize.height > 0,
+      'CapsuleMotionController seed dimensions must be positive.',
+    );
+    _seedSize = seedSize;
+  }
 
   /// Starts entrance from the seed geometry toward [target].
   ///
@@ -441,8 +453,8 @@ final class CapsuleMotionController extends ChangeNotifier {
   }
 
   void _jumpToSeed() {
-    _geometry.width.jumpTo(_seedWidth);
-    _geometry.height.jumpTo(_seedHeight);
+    _geometry.width.jumpTo(_seedSize.width);
+    _geometry.height.jumpTo(_seedSize.height);
     // The drag spring always starts at rest; only the envelope carries the
     // seed's upward offset.
     _geometry.verticalOffset.jumpTo(0);
@@ -745,8 +757,8 @@ final class CapsuleMotionController extends ChangeNotifier {
 
     if (!_exitSizeRetargeted && exitMs >= _exitSizeAtMs) {
       _exitSizeRetargeted = true;
-      _geometry.width.retarget(_seedWidth);
-      _geometry.height.retarget(_seedHeight);
+      _geometry.width.retarget(_seedSize.width);
+      _geometry.height.retarget(_seedSize.height);
     }
 
     if (!_exitFadeStarted && exitMs >= _exitFadeStartMs) {
@@ -793,11 +805,6 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (_lifecycle.state == CapsuleLifecycleState.hidden) {
       return true;
     }
-    if (_dragging || _interactionPaused) {
-      // Keep the ticker alive while the pointer is down so resume does not
-      // depend on recreating a ticker between gesture.up and the next pump.
-      return false;
-    }
     if (!_appearanceComplete || _contentEnvelopeActive) {
       return false;
     }
@@ -807,7 +814,7 @@ final class CapsuleMotionController extends ChangeNotifier {
     if (!_geometry.isSettled) {
       return false;
     }
-    if (_holdStarted) {
+    if (_holdStarted && !_interactionPaused) {
       return false;
     }
     return true;
