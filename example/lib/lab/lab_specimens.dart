@@ -25,12 +25,14 @@ abstract final class LabSpecimens {
         color: theme.tints!.colorFor(type),
         shape: BoxShape.circle,
       ),
-      child: CapsuleToastGlyphIcon(
-        glyph: CapsuleToastGlyph.automatic.resolveFor(type),
-        color: theme.accents!.colorFor(type),
-        size: 20,
-        theme: theme,
-        tickerEnabled: spinning,
+      child: TickerMode(
+        enabled: spinning,
+        child: CapsuleToastGlyphIcon(
+          glyph: CapsuleToastGlyph.automatic.resolveFor(type),
+          color: theme.accents!.colorFor(type),
+          size: 20,
+          theme: theme,
+        ),
       ),
     );
   }

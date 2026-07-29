@@ -8,6 +8,11 @@ import 'package:flutter/material.dart';
 import '../model/capsule_toast_types.dart';
 import '../theme/capsule_toast_theme_data.dart';
 
+// One full rotation of the loading spinner, in milliseconds. Transcribed from
+// the reference prototype, where the spinner turns a little slower than
+// Material's own indeterminate indicator so it reads as calm rather than busy.
+const int _kGlyphSpinnerDuration = 850;
+
 /// Structured semantic glyph for capsule toast content.
 class CapsuleToastGlyphIcon extends StatefulWidget {
   /// Creates a capsule toast status glyph.
@@ -17,7 +22,6 @@ class CapsuleToastGlyphIcon extends StatefulWidget {
     required this.color,
     required this.theme,
     this.size,
-    this.tickerEnabled = true,
   }) : assert(size == null || size > 0);
 
   /// Which glyph shape to draw.
@@ -34,8 +38,12 @@ class CapsuleToastGlyphIcon extends StatefulWidget {
   /// If null, each glyph is painted at its own optical default.
   final double? size;
 
-  /// Whether loading spinners may attach a ticker.
-  final bool tickerEnabled;
+  /// The default duration of one full rotation of the loading spinner.
+  ///
+  /// Used for the [AnimationController] this widget creates and owns.
+  static const Duration defaultAnimationDuration = Duration(
+    milliseconds: _kGlyphSpinnerDuration,
+  );
 
   @override
   State<CapsuleToastGlyphIcon> createState() => _CapsuleToastGlyphIconState();
@@ -46,52 +54,47 @@ class CapsuleToastGlyphIcon extends StatefulWidget {
     properties.add(EnumProperty<CapsuleToastGlyph>('glyph', glyph));
     properties.add(ColorProperty('color', color));
     properties.add(DoubleProperty('size', size, defaultValue: null));
-    properties.add(DiagnosticsProperty<bool>('tickerEnabled', tickerEnabled));
   }
 }
 
-// The spinner controller is created and disposed on demand as the glyph moves
-// in and out of `loading`, and one State can outlive several of those cycles:
-// a loading capsule that resolves to success and is then replaced by another
-// loading capsule reuses this element throughout. SingleTickerProviderStateMixin
-// hands out exactly one ticker per State for its whole lifetime — disposing the
-// controller does not give the slot back — so the second spinner would assert.
 class _CapsuleToastGlyphIconState extends State<CapsuleToastGlyphIcon>
-    with TickerProviderStateMixin {
-  AnimationController? _controller;
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _syncController();
+    _controller = AnimationController(
+      duration: CapsuleToastGlyphIcon.defaultAnimationDuration,
+      vsync: this,
+    );
+    _updateControllerAnimatingStatus();
   }
 
   @override
-  void didUpdateWidget(covariant CapsuleToastGlyphIcon oldWidget) {
+  void didUpdateWidget(CapsuleToastGlyphIcon oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _syncController();
-  }
-
-  void _syncController() {
-    final bool needsTicker =
-        widget.tickerEnabled &&
-        widget.glyph == CapsuleToastGlyph.loading &&
-        widget.theme.spinnerBuilder == null;
-    if (needsTicker) {
-      _controller ??= AnimationController(
-        vsync: this,
-        duration: const Duration(milliseconds: 850),
-      )..repeat();
-      return;
-    }
-    _controller?.dispose();
-    _controller = null;
+    _updateControllerAnimatingStatus();
   }
 
   @override
   void dispose() {
-    _controller?.dispose();
+    _controller.dispose();
     super.dispose();
+  }
+
+  // The spinner turns only when this widget is the thing drawing it: a
+  // theme-supplied spinnerBuilder replaces the arc entirely, so leaving the
+  // controller repeating behind one would schedule frames nothing paints.
+  void _updateControllerAnimatingStatus() {
+    final bool animating =
+        widget.glyph == CapsuleToastGlyph.loading &&
+        widget.theme.spinnerBuilder == null;
+    if (animating && !_controller.isAnimating) {
+      _controller.repeat();
+    } else if (!animating && _controller.isAnimating) {
+      _controller.stop();
+    }
   }
 
   @override
