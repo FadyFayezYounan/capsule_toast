@@ -336,9 +336,11 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
           ),
         ),
         const SizedBox(width: 10),
-        Text(
-          'tap to expand · hold to expand · swipe up to dismiss',
-          style: Lab.font(size: 11.5, color: Lab.muted2),
+        Flexible(
+          child: Text(
+            'tap to expand · hold to expand · swipe up to dismiss',
+            style: Lab.font(size: 11.5, color: Lab.muted2),
+          ),
         ),
       ],
     );
