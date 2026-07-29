@@ -186,10 +186,14 @@ deleted rather than rewritten.
 not use it and the type is already exact.
 
 `tickerEnabled` is removed in favour of `TickerMode`, Flutter's own mechanism
-for the same job. `SingleTickerProviderStateMixin` already mutes its ticker
+for the same job. Both `SingleTickerProviderStateMixin` and the
+`TickerProviderStateMixin` in use today mute the tickers they hand out
 according to the ambient `TickerMode`, and a muted ticker never schedules a
-frame callback, so a `TickerMode(enabled: false)` ancestor produces the frozen
-spinner the example needs without a bespoke flag.
+frame callback, so a `TickerMode(enabled: false)` ancestor already produces the
+frozen spinner the example needs. `tickerEnabled` is therefore not carrying
+behavior the framework lacks — it only avoids constructing the controller at
+all — and removing it is behavior-preserving rather than a swap of one
+mechanism for another.
 
 `_kGlyphSpinnerDuration` is surfaced publicly:
 
@@ -218,12 +222,17 @@ those comments are the record of where the numbers came from. Per-path stroke
 widths stay inline beside the paths they belong to for the same reason; the
 reference also varies stroke per path rather than hoisting a shared value.
 
-The painter continues to hold a nullable `Animation<double>? rotation` and to
-pass `super(repaint: rotation)`. That wiring is what makes the spinner repaint
-and must survive unchanged. A painter carrying a field that some modes ignore
-is in-idiom: `_CircularProgressIndicatorPainter` holds `headValue`, `tailValue`,
-`offsetValue`, and `rotationValue` and documents at its call site that they are
-ignored when `value` is non-null.
+The painter continues to pass `super(repaint: rotation)`. That wiring is what
+makes the spinner repaint and must survive unchanged.
+
+`rotation` becomes non-nullable `Animation<double>`. It was nullable only
+because the old lifecycle disposed the controller whenever the glyph left
+`loading`; with the controller alive for the State's whole lifetime there is
+never a null to model, and the `?? 0` fallback in the loading case goes away.
+A painter carrying a field that some modes ignore is in-idiom:
+`_CircularProgressIndicatorPainter` holds non-nullable `headValue`,
+`tailValue`, `offsetValue`, and `rotationValue` and documents at its call site
+that they are ignored when `value` is non-null.
 
 Splitting into separate static and animated painters was considered and
 rejected: it duplicates the canvas-scale setup for no behavioral gain.
@@ -280,9 +289,25 @@ The `ValueKey<String>('capsule.<glyph>.glyph')` on the sized box is unchanged.
 its three existing tests need only the renamed symbol, and their pixel-diff
 assertions continue to prove the spinner turns and the static glyphs do not.
 
-One test is added: a `TickerMode(enabled: false)` ancestor must leave
-`tester.binding.transientCallbackCount` at zero for a loading toast. This pins
-the mechanism replacing `tickerEnabled`.
+Tests are added in two places. `test/model/capsule_toast_types_test.dart` gains
+coverage of `resolveFor` across every `CapsuleToastType`, including that it
+never returns `automatic` and that it passes an explicit glyph through
+unchanged.
+
+`test/widgets/capsule_toast_glyph_test.dart` gains four characterization tests
+covering the size default and the animation mechanism: that a null `size`
+paints at the per-glyph optical default and an explicit `size` overrides it;
+that a `TickerMode(enabled: false)` ancestor leaves
+`tester.binding.transientCallbackCount` at zero while an enabled one leaves it
+at one; and that a glyph element reused across a loading → success → loading
+sequence keeps animating without throwing.
+
+The last of these is the important one. It is the scenario the deleted
+`TickerProviderStateMixin` comment described, and it is what proves the return
+to `SingleTickerProviderStateMixin` is safe. Because the current mixin already
+honours `TickerMode`, these tests pass both before and after the refactor;
+they are written and committed ahead of it as a regression net, not as failing
+tests.
 
 `test/public_api_test.dart` does not reference any glyph symbol and needs no
 change.
