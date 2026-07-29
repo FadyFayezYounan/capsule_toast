@@ -424,7 +424,7 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         Text(
-          'LIFEOPS · MOTION PROTOTYPE',
+          'MOTION PROTOTYPE',
           style: Lab.font(
             size: 11,
             weight: FontWeight.w600,
