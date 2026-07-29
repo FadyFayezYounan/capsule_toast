@@ -13,6 +13,172 @@ import '../theme/capsule_toast_theme_data.dart';
 // Material's own indeterminate indicator so it reads as calm rather than busy.
 const int _kGlyphSpinnerDuration = 850;
 
+// Every reference SVG is authored on a 20x20 viewBox. All path coordinates in
+// this file are in those units and are scaled to the widget's size at paint
+// time, so a glyph can be drawn at any size without retuning its numbers.
+const double _kGlyphCanvasSize = 20;
+
+/// Paints one glyph inside a 20-unit canvas, matching the reference SVGs.
+///
+/// Every path below is a transcription of the corresponding `<svg>` in the
+/// prototype, including its own stroke width — the reference varies stroke per
+/// path (a 2.3 checkmark beside a 1.7 circle), so a single shared width reads
+/// visibly wrong at these sizes.
+class _CapsuleToastGlyphPainter extends CustomPainter {
+  _CapsuleToastGlyphPainter({
+    required this.glyph,
+    required this.color,
+    required this.rotation,
+  }) : super(repaint: rotation);
+
+  final CapsuleToastGlyph glyph;
+  final Color color;
+
+  /// Drives the loading spinner, and repaints this painter as it ticks.
+  ///
+  /// Ignored by every glyph other than [CapsuleToastGlyph.loading]. Passing
+  /// this animation to `super.repaint` is what makes the spinner turn: reading
+  /// its value without subscribing to it once left the arc frozen, because the
+  /// ticker ran but nothing ever asked for a frame.
+  final Animation<double> rotation;
+
+  Paint _stroke(double width) {
+    return Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = width
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+  }
+
+  Paint get _fill => Paint()
+    ..color = color
+    ..style = PaintingStyle.fill;
+
+  // M4.2 10.6l3.6 3.6L15.8 6 — stroke 2.3
+  void _paintSuccess(Canvas canvas) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(4.2, 10.6)
+        ..lineTo(7.8, 14.2)
+        ..lineTo(15.8, 6),
+      _stroke(2.3),
+    );
+  }
+
+  // circle r7.6 stroke 1.7 · dot at (10, 6.2) r1.05 · stem M10 9v5
+  void _paintInformation(Canvas canvas) {
+    canvas.drawCircle(const Offset(10, 10), 7.6, _stroke(1.7));
+    canvas.drawCircle(const Offset(10, 6.2), 1.05, _fill);
+    canvas.drawLine(const Offset(10, 9), const Offset(10, 14), _stroke(1.9));
+  }
+
+  // triangle stroke 1.7 · stem M10 7.9v3.5 · dot at (10, 13.4) r0.95
+  void _paintWarning(Canvas canvas) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(10, 3.1)
+        ..lineTo(17, 15.5)
+        ..lineTo(3, 15.5)
+        ..close(),
+      _stroke(1.7),
+    );
+    canvas.drawLine(
+      const Offset(10, 7.9),
+      const Offset(10, 11.4),
+      _stroke(1.8),
+    );
+    canvas.drawCircle(const Offset(10, 13.4), 0.95, _fill);
+  }
+
+  // circle r7.6 stroke 1.7 · cross 7.4→12.6 stroke 1.8
+  void _paintError(Canvas canvas) {
+    canvas.drawCircle(const Offset(10, 10), 7.6, _stroke(1.7));
+    final Paint cross = _stroke(1.8);
+    canvas.drawLine(const Offset(7.4, 7.4), const Offset(12.6, 12.6), cross);
+    canvas.drawLine(const Offset(12.6, 7.4), const Offset(7.4, 12.6), cross);
+  }
+
+  // Three arcs over a dot, stroke 1.6 — the reference's offline glyph.
+  void _paintConnectivity(Canvas canvas) {
+    final Paint arcs = _stroke(1.6);
+    for (final double y in <double>[7.6, 10.6, 13.6]) {
+      final double span = (13.6 - y) * 1.4 + 4;
+      canvas.drawArc(
+        Rect.fromCenter(
+          center: Offset(10, y + span / 2),
+          width: span * 2,
+          height: span * 2,
+        ),
+        math.pi * 1.15,
+        math.pi * 0.7,
+        false,
+        arcs,
+      );
+    }
+    canvas.drawCircle(const Offset(10, 16.4), 1.05, _fill);
+  }
+
+  void _paintNeutral(Canvas canvas) {
+    canvas.drawCircle(const Offset(10, 10), 2.4, _fill);
+  }
+
+  // Track at 0.22 alpha with a quarter-turn head, both stroke 2. The head
+  // starts at twelve o'clock: `M10 2.8 a7.2 7.2 0 0 1 7.2 7.2`.
+  void _paintLoading(Canvas canvas) {
+    canvas.translate(_kGlyphCanvasSize / 2, _kGlyphCanvasSize / 2);
+    canvas.rotate(rotation.value * 2 * math.pi);
+    canvas.translate(-_kGlyphCanvasSize / 2, -_kGlyphCanvasSize / 2);
+    canvas.drawCircle(
+      const Offset(10, 10),
+      7.2,
+      _stroke(2)..color = color.withValues(alpha: 0.22),
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: const Offset(10, 10), radius: 7.2),
+      -math.pi / 2,
+      math.pi / 2,
+      false,
+      _stroke(2),
+    );
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double scale = size.width / _kGlyphCanvasSize;
+    canvas.save();
+    canvas.scale(scale, scale);
+
+    switch (glyph) {
+      case CapsuleToastGlyph.success:
+        _paintSuccess(canvas);
+      case CapsuleToastGlyph.information:
+        _paintInformation(canvas);
+      case CapsuleToastGlyph.warning:
+        _paintWarning(canvas);
+      case CapsuleToastGlyph.error:
+        _paintError(canvas);
+      case CapsuleToastGlyph.connectivity:
+        _paintConnectivity(canvas);
+      case CapsuleToastGlyph.neutral:
+        _paintNeutral(canvas);
+      case CapsuleToastGlyph.loading:
+        _paintLoading(canvas);
+      case CapsuleToastGlyph.automatic:
+        break;
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_CapsuleToastGlyphPainter oldPainter) {
+    return oldPainter.glyph != glyph ||
+        oldPainter.color != color ||
+        oldPainter.rotation != rotation;
+  }
+}
+
 /// Structured semantic glyph for capsule toast content.
 class CapsuleToastGlyphIcon extends StatefulWidget {
   /// Creates a capsule toast status glyph.
@@ -120,9 +286,6 @@ class _CapsuleToastGlyphIconState extends State<CapsuleToastGlyphIcon>
       width: size,
       height: size,
       child: CustomPaint(
-        // The spinner repaints straight off the controller. Reading
-        // `_controller.value` without subscribing to it is what left the
-        // spinner frozen: the ticker ran, but nothing ever asked for a frame.
         painter: _CapsuleToastGlyphPainter(
           glyph: widget.glyph,
           color: widget.color,
@@ -130,154 +293,6 @@ class _CapsuleToastGlyphIconState extends State<CapsuleToastGlyphIcon>
         ),
       ),
     );
-  }
-}
-
-/// Paints one glyph inside a 20-unit canvas, matching the reference SVGs.
-///
-/// Every path below is a transcription of the corresponding `<svg>` in the
-/// prototype, including its own stroke width — the reference varies stroke per
-/// path (a 2.3 checkmark beside a 1.7 circle), so a single shared width reads
-/// visibly wrong at these sizes.
-class _CapsuleToastGlyphPainter extends CustomPainter {
-  _CapsuleToastGlyphPainter({
-    required this.glyph,
-    required this.color,
-    required this.rotation,
-  }) : super(repaint: rotation);
-
-  final CapsuleToastGlyph glyph;
-  final Color color;
-
-  /// Drives the loading spinner, and repaints this painter as it ticks.
-  final Animation<double>? rotation;
-
-  static const double _canvas = 20;
-
-  Paint _stroke(double width) {
-    return Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = width
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-  }
-
-  Paint get _fill => Paint()
-    ..color = color
-    ..style = PaintingStyle.fill;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double scale = size.width / _canvas;
-    canvas.save();
-    canvas.scale(scale, scale);
-
-    switch (glyph) {
-      // M4.2 10.6l3.6 3.6L15.8 6 — stroke 2.3
-      case CapsuleToastGlyph.success:
-        canvas.drawPath(
-          Path()
-            ..moveTo(4.2, 10.6)
-            ..lineTo(7.8, 14.2)
-            ..lineTo(15.8, 6),
-          _stroke(2.3),
-        );
-
-      // circle r7.6 stroke 1.7 · dot at (10, 6.2) r1.05 · stem M10 9v5
-      case CapsuleToastGlyph.information:
-        canvas.drawCircle(const Offset(10, 10), 7.6, _stroke(1.7));
-        canvas.drawCircle(const Offset(10, 6.2), 1.05, _fill);
-        canvas.drawLine(
-          const Offset(10, 9),
-          const Offset(10, 14),
-          _stroke(1.9),
-        );
-
-      // triangle stroke 1.7 · stem M10 7.9v3.5 · dot at (10, 13.4) r0.95
-      case CapsuleToastGlyph.warning:
-        canvas.drawPath(
-          Path()
-            ..moveTo(10, 3.1)
-            ..lineTo(17, 15.5)
-            ..lineTo(3, 15.5)
-            ..close(),
-          _stroke(1.7),
-        );
-        canvas.drawLine(
-          const Offset(10, 7.9),
-          const Offset(10, 11.4),
-          _stroke(1.8),
-        );
-        canvas.drawCircle(const Offset(10, 13.4), 0.95, _fill);
-
-      // circle r7.6 stroke 1.7 · cross 7.4→12.6 stroke 1.8
-      case CapsuleToastGlyph.error:
-        canvas.drawCircle(const Offset(10, 10), 7.6, _stroke(1.7));
-        final Paint cross = _stroke(1.8);
-        canvas.drawLine(
-          const Offset(7.4, 7.4),
-          const Offset(12.6, 12.6),
-          cross,
-        );
-        canvas.drawLine(
-          const Offset(12.6, 7.4),
-          const Offset(7.4, 12.6),
-          cross,
-        );
-
-      // Three arcs over a dot, stroke 1.6 — the reference's offline glyph.
-      case CapsuleToastGlyph.connectivity:
-        final Paint arcs = _stroke(1.6);
-        for (final double y in <double>[7.6, 10.6, 13.6]) {
-          final double span = (13.6 - y) * 1.4 + 4;
-          canvas.drawArc(
-            Rect.fromCenter(
-              center: Offset(10, y + span / 2),
-              width: span * 2,
-              height: span * 2,
-            ),
-            math.pi * 1.15,
-            math.pi * 0.7,
-            false,
-            arcs,
-          );
-        }
-        canvas.drawCircle(const Offset(10, 16.4), 1.05, _fill);
-
-      case CapsuleToastGlyph.neutral:
-        canvas.drawCircle(const Offset(10, 10), 2.4, _fill);
-
-      // Track at 0.22 alpha with a quarter-turn head, both stroke 2. The head
-      // starts at twelve o'clock: `M10 2.8 a7.2 7.2 0 0 1 7.2 7.2`.
-      case CapsuleToastGlyph.loading:
-        canvas.translate(_canvas / 2, _canvas / 2);
-        canvas.rotate((rotation?.value ?? 0) * 2 * math.pi);
-        canvas.translate(-_canvas / 2, -_canvas / 2);
-        canvas.drawCircle(
-          const Offset(10, 10),
-          7.2,
-          _stroke(2)..color = color.withValues(alpha: 0.22),
-        );
-        canvas.drawArc(
-          Rect.fromCircle(center: const Offset(10, 10), radius: 7.2),
-          -math.pi / 2,
-          math.pi / 2,
-          false,
-          _stroke(2),
-        );
-
-      case CapsuleToastGlyph.automatic:
-        break;
-    }
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant _CapsuleToastGlyphPainter oldDelegate) {
-    return oldDelegate.glyph != glyph ||
-        oldDelegate.color != color ||
-        oldDelegate.rotation != rotation;
   }
 }
 
