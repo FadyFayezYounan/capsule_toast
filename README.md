@@ -21,7 +21,7 @@ Brand-neutral morphing capsule notifications for Flutter.
 
 ```yaml
 dependencies:
-  capsule_toast: ^0.2.0
+  capsule_toast: ^0.3.0
 ```
 
 ```bash

@@ -1,3 +1,27 @@
+## 0.3.0
+
+The capsule toast glyph widget now follows Flutter framework conventions.
+Painted output is unchanged.
+
+Breaking changes:
+
+- `CapsuleToastGlyphWidget` is renamed to `CapsuleToastGlyphIcon`.
+- `resolveCapsuleToastGlyph(glyph, type)` is replaced by the enum method
+  `glyph.resolveFor(type)`.
+- `capsuleToastGlyphSize(glyph)` is removed. `CapsuleToastGlyphIcon.size` is
+  now optional; leave it null to paint a glyph at the same optical default
+  that function returned.
+- `CapsuleToastGlyphIcon.tickerEnabled` is removed. Wrap the widget in a
+  `TickerMode` with `enabled` set to false to freeze the loading spinner.
+
+Other changes:
+
+- Added `CapsuleToastGlyphIcon.defaultAnimationDuration`, the duration of one
+  full rotation of the loading spinner.
+- The loading spinner's `AnimationController` is now created once for the
+  widget's lifetime and started and stopped as the glyph changes, instead of
+  being disposed and recreated.
+
 ## 0.2.0
 
 Motion and chrome now track the reference design frame for frame.
