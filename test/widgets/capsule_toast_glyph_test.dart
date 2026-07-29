@@ -141,4 +141,87 @@ void main() {
       const Size(24, 24),
     );
   });
+
+  testWidgets('a disabled TickerMode leaves the spinner unscheduled', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      Center(
+        child: TickerMode(
+          enabled: false,
+          child: CapsuleToastGlyphIcon(
+            glyph: CapsuleToastGlyph.loading,
+            color: const Color(0xFF101010),
+            theme: CapsuleToastThemeData.fallback(),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.binding.transientCallbackCount, 0);
+  });
+
+  testWidgets('an enabled TickerMode schedules the spinner', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      Center(
+        child: TickerMode(
+          enabled: true,
+          child: CapsuleToastGlyphIcon(
+            glyph: CapsuleToastGlyph.loading,
+            color: const Color(0xFF101010),
+            theme: CapsuleToastThemeData.fallback(),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.binding.transientCallbackCount, 1);
+
+    // Tear the tree down inside the test so the controller is disposed while
+    // the binding is still live.
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('a non-loading glyph schedules nothing', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      Center(
+        child: CapsuleToastGlyphIcon(
+          glyph: CapsuleToastGlyph.success,
+          color: const Color(0xFF101010),
+          theme: CapsuleToastThemeData.fallback(),
+        ),
+      ),
+    );
+
+    expect(tester.binding.transientCallbackCount, 0);
+  });
+
+  testWidgets('a glyph element reused across loading cycles keeps spinning', (
+    WidgetTester tester,
+  ) async {
+    Future<void> pumpGlyph(CapsuleToastGlyph glyph) {
+      return tester.pumpWidget(
+        Center(
+          child: CapsuleToastGlyphIcon(
+            glyph: glyph,
+            color: const Color(0xFF101010),
+            theme: CapsuleToastThemeData.fallback(),
+          ),
+        ),
+      );
+    }
+
+    await pumpGlyph(CapsuleToastGlyph.loading);
+    await pumpGlyph(CapsuleToastGlyph.success);
+    await pumpGlyph(CapsuleToastGlyph.loading);
+
+    expect(tester.takeException(), isNull);
+    expect(tester.binding.transientCallbackCount, 1);
+
+    await tester.pumpWidget(const SizedBox());
+  });
 }
