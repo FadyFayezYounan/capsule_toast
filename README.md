@@ -103,6 +103,27 @@ Users can tap the capsule or activate it from the keyboard to toggle its mode;
 a long press expands it. Code can control the same state through the returned
 handle.
 
+Some toasts have nothing meaningful to show in one of the two layouts — a
+brief success toast with no message has nothing to reveal when expanded. Set
+`expansionPolicy` to lock the toast to one layout for its lifetime:
+
+```dart
+CapsuleToastData.success(
+  title: 'Saved',
+  expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+);
+```
+
+`CapsuleToastExpansionPolicy.compactOnly` and `.expandedOnly` disable tap,
+long-press, and `CapsuleToastHandle.expand()`/`collapse()` for as long as
+that toast's content is showing. The default, `.adaptive`, is today's
+toggle-between-both behavior. A restricted toast's `initialMode` must match
+its policy (`compactOnly` requires `CapsuleToastMode.compact`,
+`expandedOnly` requires `CapsuleToastMode.expanded`) — a mismatch throws in
+debug mode. Resolving a `loading` toast into a different outcome is
+unaffected: the resolved toast's own `expansionPolicy` takes over
+immediately, regardless of what the loading toast's policy was.
+
 ## Duration and persistence
 
 Non-persistent toasts use the default duration for their semantic type. Supply
@@ -443,6 +464,7 @@ import 'package:capsule_toast/capsule_toast.dart';
 | `CapsuleToastAnimatedSlot` | Applies staggered motion to custom content |
 | `CapsuleToastGlyphIcon` | Renders the package's structured glyphs |
 | `CapsuleToastType`, `CapsuleToastMode`, `CapsuleToastQueuePolicy` | Define semantics, layout, and queue behavior |
+| `CapsuleToastExpansionPolicy` | Locks a toast to compact-only or expanded-only layout |
 | `CapsuleToastGlyph`, `CapsuleToastSlot` | Define glyph selection and animated regions |
 | `CapsuleToastDismissReason` | Describes how a record ended |
 | `CapsuleToastReducedMotionPolicy`, `CapsuleToastHapticPolicy` | Configure interaction policies |

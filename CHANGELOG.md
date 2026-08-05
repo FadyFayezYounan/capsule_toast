@@ -1,3 +1,12 @@
+## Unreleased
+
+- `CapsuleToastData.expansionPolicy` locks a toast to
+  `CapsuleToastExpansionPolicy.compactOnly` or `.expandedOnly`, disabling
+  tap, long-press, and handle-driven mode toggling for toasts whose
+  expanded or compact layout has no meaningful content. Defaults to
+  `.adaptive`, which is the existing toggle-both behavior — fully backward
+  compatible.
+
 ## 1.0.0
 
 Initial release.
