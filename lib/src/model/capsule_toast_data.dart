@@ -81,6 +81,7 @@ class CapsuleToastData with Diagnosticable {
     this.message,
     this.semanticAnnouncement,
     this.initialMode = CapsuleToastMode.compact,
+    this.expansionPolicy = CapsuleToastExpansionPolicy.adaptive,
     this.glyph = CapsuleToastGlyph.automatic,
     this.icon,
     this.iconBuilder,
@@ -134,6 +135,16 @@ class CapsuleToastData with Diagnosticable {
        assert(
          !persistent || displayDuration == null,
          'Persistent capsule toasts cannot have a displayDuration.',
+       ),
+       assert(
+         expansionPolicy != CapsuleToastExpansionPolicy.compactOnly ||
+             initialMode == CapsuleToastMode.compact,
+         'A compactOnly toast cannot have initialMode: expanded.',
+       ),
+       assert(
+         expansionPolicy != CapsuleToastExpansionPolicy.expandedOnly ||
+             initialMode == CapsuleToastMode.expanded,
+         'An expandedOnly toast cannot have initialMode: compact.',
        );
 
   /// Creates success feedback toast data.
@@ -143,6 +154,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     CapsuleToastGlyph glyph = CapsuleToastGlyph.automatic,
     IconData? icon,
     WidgetBuilder? iconBuilder,
@@ -164,6 +177,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       glyph: glyph,
       icon: icon,
       iconBuilder: iconBuilder,
@@ -187,6 +201,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     CapsuleToastGlyph glyph = CapsuleToastGlyph.automatic,
     IconData? icon,
     WidgetBuilder? iconBuilder,
@@ -208,6 +224,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       glyph: glyph,
       icon: icon,
       iconBuilder: iconBuilder,
@@ -231,6 +248,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     CapsuleToastGlyph glyph = CapsuleToastGlyph.automatic,
     IconData? icon,
     WidgetBuilder? iconBuilder,
@@ -252,6 +271,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       glyph: glyph,
       icon: icon,
       iconBuilder: iconBuilder,
@@ -275,6 +295,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     CapsuleToastGlyph glyph = CapsuleToastGlyph.automatic,
     IconData? icon,
     WidgetBuilder? iconBuilder,
@@ -296,6 +318,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       glyph: glyph,
       icon: icon,
       iconBuilder: iconBuilder,
@@ -319,6 +342,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     CapsuleToastGlyph glyph = CapsuleToastGlyph.automatic,
     IconData? icon,
     WidgetBuilder? iconBuilder,
@@ -340,6 +365,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       glyph: glyph,
       icon: icon,
       iconBuilder: iconBuilder,
@@ -363,6 +389,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     CapsuleToastGlyph glyph = CapsuleToastGlyph.automatic,
     IconData? icon,
     WidgetBuilder? iconBuilder,
@@ -384,6 +412,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       glyph: glyph,
       icon: icon,
       iconBuilder: iconBuilder,
@@ -407,6 +436,8 @@ class CapsuleToastData with Diagnosticable {
     String? message,
     String? semanticAnnouncement,
     CapsuleToastMode initialMode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
     Duration? displayDuration,
     bool persistent = false,
     CapsuleToastThemeData? theme,
@@ -422,6 +453,7 @@ class CapsuleToastData with Diagnosticable {
       message: message,
       semanticAnnouncement: semanticAnnouncement,
       initialMode: initialMode,
+      expansionPolicy: expansionPolicy,
       displayDuration: displayDuration,
       persistent: persistent,
       theme: theme,
@@ -452,6 +484,9 @@ class CapsuleToastData with Diagnosticable {
 
   /// Layout mode when the toast first appears.
   final CapsuleToastMode initialMode;
+
+  /// Whether this toast may toggle between compact and expanded layout.
+  final CapsuleToastExpansionPolicy expansionPolicy;
 
   /// Icon selection strategy for structured content.
   final CapsuleToastGlyph glyph;
@@ -502,6 +537,7 @@ class CapsuleToastData with Diagnosticable {
     Object? message = _unset,
     Object? semanticAnnouncement = _unset,
     CapsuleToastMode? initialMode,
+    CapsuleToastExpansionPolicy? expansionPolicy,
     CapsuleToastGlyph? glyph,
     Object? icon = _unset,
     Object? iconBuilder = _unset,
@@ -529,6 +565,7 @@ class CapsuleToastData with Diagnosticable {
           ? this.semanticAnnouncement
           : semanticAnnouncement as String?,
       initialMode: initialMode ?? this.initialMode,
+      expansionPolicy: expansionPolicy ?? this.expansionPolicy,
       glyph: glyph ?? this.glyph,
       icon: identical(icon, _unset) ? this.icon : icon as IconData?,
       iconBuilder: identical(iconBuilder, _unset)
@@ -575,6 +612,12 @@ class CapsuleToastData with Diagnosticable {
       StringProperty('semanticAnnouncement', semanticAnnouncement),
     );
     properties.add(EnumProperty<CapsuleToastMode>('initialMode', initialMode));
+    properties.add(
+      EnumProperty<CapsuleToastExpansionPolicy>(
+        'expansionPolicy',
+        expansionPolicy,
+      ),
+    );
     properties.add(EnumProperty<CapsuleToastGlyph>('glyph', glyph));
     properties.add(DiagnosticsProperty<IconData?>('icon', icon));
     properties.add(
@@ -633,6 +676,7 @@ class CapsuleToastData with Diagnosticable {
         other.message == message &&
         other.semanticAnnouncement == semanticAnnouncement &&
         other.initialMode == initialMode &&
+        other.expansionPolicy == expansionPolicy &&
         other.glyph == glyph &&
         other.icon == icon &&
         other.iconBuilder == iconBuilder &&
@@ -657,6 +701,7 @@ class CapsuleToastData with Diagnosticable {
     message,
     semanticAnnouncement,
     initialMode,
+    expansionPolicy,
     glyph,
     icon,
     iconBuilder,

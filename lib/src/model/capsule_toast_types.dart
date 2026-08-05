@@ -33,6 +33,20 @@ enum CapsuleToastMode {
   expanded,
 }
 
+/// Whether a toast may toggle between compact and expanded layout.
+enum CapsuleToastExpansionPolicy {
+  /// Toggles between compact and expanded via tap, long-press, or the
+  /// handle (today's behavior).
+  adaptive,
+
+  /// Locked to compact — cannot expand via any interaction or handle call.
+  compactOnly,
+
+  /// Locked to expanded — cannot collapse via any interaction or handle
+  /// call.
+  expandedOnly,
+}
+
 /// Queue behavior when a new toast is shown while others are active.
 enum CapsuleToastQueuePolicy {
   /// Append the toast to the FIFO queue.

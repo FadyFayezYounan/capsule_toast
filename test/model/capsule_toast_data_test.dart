@@ -109,4 +109,63 @@ void main() {
       throwsAssertionError,
     );
   });
+
+  test('expansionPolicy defaults to adaptive', () {
+    final CapsuleToastData toast = CapsuleToastData.success(title: 'Saved');
+
+    expect(toast.expansionPolicy, CapsuleToastExpansionPolicy.adaptive);
+  });
+
+  test('compactOnly rejects an expanded initialMode', () {
+    expect(
+      () => CapsuleToastData.success(
+        title: 'Saved',
+        expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+        initialMode: CapsuleToastMode.expanded,
+      ),
+      throwsAssertionError,
+    );
+  });
+
+  test('expandedOnly rejects a compact initialMode', () {
+    expect(
+      () => CapsuleToastData.success(
+        title: 'Saved',
+        expansionPolicy: CapsuleToastExpansionPolicy.expandedOnly,
+      ),
+      throwsAssertionError,
+    );
+  });
+
+  test('expandedOnly accepts a matching expanded initialMode', () {
+    final CapsuleToastData toast = CapsuleToastData.success(
+      title: 'Saved',
+      expansionPolicy: CapsuleToastExpansionPolicy.expandedOnly,
+      initialMode: CapsuleToastMode.expanded,
+    );
+
+    expect(toast.expansionPolicy, CapsuleToastExpansionPolicy.expandedOnly);
+    expect(toast.initialMode, CapsuleToastMode.expanded);
+  });
+
+  test('copyWith can change expansionPolicy independently', () {
+    final CapsuleToastData toast = CapsuleToastData.success(title: 'Saved');
+    final CapsuleToastData copy = toast.copyWith(
+      expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+    );
+
+    expect(copy.expansionPolicy, CapsuleToastExpansionPolicy.compactOnly);
+    expect(copy.title, 'Saved');
+  });
+
+  test('operator == and hashCode account for expansionPolicy', () {
+    final CapsuleToastData a = CapsuleToastData.success(title: 'Saved');
+    final CapsuleToastData b = CapsuleToastData.success(
+      title: 'Saved',
+      expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+    );
+
+    expect(a == b, isFalse);
+    expect(a.hashCode == b.hashCode, isFalse);
+  });
 }
