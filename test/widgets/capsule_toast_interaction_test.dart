@@ -39,6 +39,63 @@ void main() {
     expect(capsuleSize(tester).height, closeTo(expandedHeight, 1));
   });
 
+  testWidgets('tapping a compactOnly toast does not expand it', (tester) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.success(
+        title: 'Saved',
+        expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+      ),
+    );
+    final double compactHeight = capsuleSize(tester).height;
+
+    await tester.tap(find.byKey(capsuleSurfaceKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 520));
+
+    expect(capsuleSize(tester).height, closeTo(compactHeight, 1));
+  });
+
+  testWidgets('tapping an expandedOnly toast does not collapse it', (
+    tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.warning(
+        title: 'Attention',
+        message: 'Review the information before continuing.',
+        initialMode: CapsuleToastMode.expanded,
+        expansionPolicy: CapsuleToastExpansionPolicy.expandedOnly,
+      ),
+    );
+    final double expandedHeight = capsuleSize(tester).height;
+
+    await tester.tap(find.byKey(capsuleSurfaceKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 520));
+
+    expect(capsuleSize(tester).height, closeTo(expandedHeight, 1));
+  });
+
+  testWidgets('long-pressing a compactOnly toast does not expand it', (
+    tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.success(
+        title: 'Saved',
+        expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+      ),
+    );
+    final double compactHeight = capsuleSize(tester).height;
+
+    await tester.longPress(find.byKey(capsuleSurfaceKey));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 520));
+
+    expect(capsuleSize(tester).height, closeTo(compactHeight, 1));
+  });
+
   testWidgets('pressing pauses auto-dismiss', (tester) async {
     await pumpToast(
       tester,
