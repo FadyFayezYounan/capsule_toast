@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
+import 'package:capsule_toast/src/motion/capsule_lifecycle.dart';
 import 'package:capsule_toast/src/widgets/capsule_toast_animated_slot.dart';
 
 import '../support/test_app.dart';
@@ -132,6 +133,38 @@ void main() {
       expect(harness.motion.value.verticalOffset, closeTo(0, 0.5));
       expect(harness.handle.isClosed, isFalse);
     });
+  });
+
+  group('dismiss while entering', () {
+    testWidgets(
+      'fades from the current partial appearance instead of snapping open',
+      (tester) async {
+        final ToastTestHarness harness = await pumpToastHarness(
+          tester,
+          CapsuleToastData.success(title: 'Saved', persistent: true),
+          settle: false,
+        );
+
+        // Partway into the ~140ms appearance: still visibly entering, not
+        // yet fully opaque.
+        await tester.pump(const Duration(milliseconds: 40));
+        expect(harness.motion.value.state, CapsuleLifecycleState.seed);
+        final double opacityBeforeDismiss = harness.motion.value.opacity;
+        expect(opacityBeforeDismiss, lessThan(0.9));
+
+        harness.handle.dismiss();
+
+        // A dismissal mid-entrance should continue fading from wherever the
+        // capsule already was, not snap fully open first and then
+        // immediately collapse — that reads as the capsule flashing open
+        // before taking it back.
+        expect(
+          harness.motion.value.opacity,
+          lessThanOrEqualTo(opacityBeforeDismiss + 0.01),
+        );
+        expect(harness.motion.value.state, CapsuleLifecycleState.collapsing);
+      },
+    );
   });
 
   group('icon travel', () {

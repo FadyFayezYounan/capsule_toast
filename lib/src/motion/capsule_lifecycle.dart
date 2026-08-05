@@ -90,11 +90,16 @@ final class CapsuleLifecycle {
   }
 
   /// Begins exit collapse and records the first [reason].
+  ///
+  /// Legal from [CapsuleLifecycleState.seed] as well as the settled layouts:
+  /// a dismissal requested mid-entrance collapses whatever partial geometry
+  /// exists rather than waiting for the entrance to finish first.
   void requestDismiss(CapsuleToastDismissReason reason) {
     if (!_requireState(
       null,
       transition: 'requestDismiss',
       legal: const <CapsuleLifecycleState>[
+        CapsuleLifecycleState.seed,
         CapsuleLifecycleState.compact,
         CapsuleLifecycleState.expanded,
       ],

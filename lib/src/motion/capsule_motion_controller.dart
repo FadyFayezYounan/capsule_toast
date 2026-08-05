@@ -96,6 +96,8 @@ final class CapsuleMotionController extends ChangeNotifier {
   bool _contentEnvelopeActive = false;
   bool _exitSizeRetargeted = false;
   bool _exitFadeStarted = false;
+  double _exitFadeStartOpacity = 1;
+  double _exitFadeDelayMs = _exitFadeStartMs;
   bool _exitCompleted = false;
   bool _holdStarted = false;
   bool _interactionPaused = false;
@@ -321,19 +323,26 @@ final class CapsuleMotionController extends ChangeNotifier {
   }
 
   /// Begins the exit sequence for [reason].
+  ///
+  /// A dismissal requested before the entrance ever settled has nothing
+  /// finished to collapse out of. Forcing the entrance to complete first
+  /// (snapping straight to fully opaque) only to immediately start exiting
+  /// reads as the capsule flashing open before taking it back. Instead, an
+  /// interrupted entrance skips the pre-fade hold and heads for the seed
+  /// geometry at once, fading from whatever opacity it already reached.
   void dismiss(CapsuleToastDismissReason reason, {double velocity = 0}) {
     if (_lifecycle.state == CapsuleLifecycleState.hidden ||
         _lifecycle.state == CapsuleLifecycleState.collapsing) {
       return;
     }
-    if (_lifecycle.state == CapsuleLifecycleState.seed) {
-      _forceAppear();
-    }
+    final bool interruptsEntrance =
+        _lifecycle.state == CapsuleLifecycleState.seed;
     _dragging = false;
     _interactionPaused = false;
     _lifecycle.requestDismiss(reason);
     _exitElapsed = Duration.zero;
-    _exitSizeRetargeted = false;
+    _exitSizeRetargeted = interruptsEntrance;
+    _exitFadeDelayMs = interruptsEntrance ? 0 : _exitFadeStartMs;
     _exitFadeStarted = false;
     _exitCompleted = false;
     _holdClock.reset();
@@ -346,9 +355,15 @@ final class CapsuleMotionController extends ChangeNotifier {
     _contentEnvelopeActive = true;
     // Retune to the exit spring now, but retarget to the seed only once the
     // content has begun retracting (see [_advanceExit]). Between those two
-    // moments the capsule keeps its current target and simply stops bouncing.
+    // moments the capsule keeps its current target and simply stops
+    // bouncing. An interrupted entrance skips that hold and heads for the
+    // seed size at once — it was never far from it to begin with.
     _usingExitSpring = true;
     _usingInteractiveSpring = false;
+    if (interruptsEntrance) {
+      _geometry.width.retarget(_seedSize.width);
+      _geometry.height.retarget(_seedSize.height);
+    }
     // A flick carries the capsule further along its own travel and then holds
     // there for the fade, rather than springing back to rest.
     final double kick = velocity == 0
@@ -475,29 +490,6 @@ final class CapsuleMotionController extends ChangeNotifier {
     _heightLeadRemaining = Duration.zero;
     _geometry.width.retarget(target.width);
     _geometry.height.retarget(target.height);
-  }
-
-  void _forceAppear() {
-    _appearanceComplete = true;
-    _appearanceElapsed =
-        _motionTheme.appearanceDuration ?? const Duration(milliseconds: 140);
-    _envelopeOpacity = 1;
-    _envelopeOffset = 0;
-    _scale = 1;
-    // Deliberately leaves the drag spring alone — a capsule dismissed straight
-    // out of seed may already be under the finger.
-    if (_pendingHeightTarget != null) {
-      _geometry.height.retarget(_pendingHeightTarget!.height);
-      _pendingHeightTarget = null;
-      _heightLeadRemaining = Duration.zero;
-    }
-    if (_lifecycle.state == CapsuleLifecycleState.seed) {
-      _lifecycle.didAppear();
-      if (_pendingExpandAfterAppear) {
-        _lifecycle.expand();
-        _pendingExpandAfterAppear = false;
-      }
-    }
   }
 
   void _ensureTicker() {
@@ -761,17 +753,21 @@ final class CapsuleMotionController extends ChangeNotifier {
       _geometry.height.retarget(_seedSize.height);
     }
 
-    if (!_exitFadeStarted && exitMs >= _exitFadeStartMs) {
+    if (!_exitFadeStarted && exitMs >= _exitFadeDelayMs) {
       _exitFadeStarted = true;
+      _exitFadeStartOpacity = _envelopeOpacity;
     }
 
     _advanceSprings(elapsed);
 
     if (_exitFadeStarted) {
-      final double fadeT = ((exitMs - _exitFadeStartMs) / _exitFadeDurationMs)
+      final double fadeT = ((exitMs - _exitFadeDelayMs) / _exitFadeDurationMs)
           .clamp(0.0, 1.0);
       final double curved = capsuleEaseOut.transform(fadeT);
-      _envelopeOpacity = 1 - curved;
+      // Fades from whatever opacity the capsule had when the exit fade
+      // began, not always from fully opaque — a dismissal that interrupted
+      // the entrance starts this already below 1.
+      _envelopeOpacity = _exitFadeStartOpacity * (1 - curved);
       // Composes on top of the frozen drag offset rather than replacing it, so
       // a flicked capsule keeps travelling from where it was released.
       _envelopeOffset = _reducedMotion ? 0 : -_exitUpwardTravel * curved;
