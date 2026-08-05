@@ -126,6 +126,8 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
   void _fire(
     LabVariant variant, {
     CapsuleToastMode mode = CapsuleToastMode.compact,
+    CapsuleToastExpansionPolicy expansionPolicy =
+        CapsuleToastExpansionPolicy.adaptive,
   }) {
     final CapsuleToastManager? manager = _manager;
     if (manager == null) {
@@ -135,7 +137,12 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
     setState(() => _lastFired = variant);
 
     final CapsuleToastHandle handle = manager.show(
-      buildLabToast(variant, rtl: _rtl, mode: mode),
+      buildLabToast(
+        variant,
+        rtl: _rtl,
+        mode: mode,
+        expansionPolicy: expansionPolicy,
+      ),
       queuePolicy: CapsuleToastQueuePolicy.clearAndShow,
     );
     _active = handle;
@@ -508,6 +515,21 @@ class _CapsuleToastLabPageState extends State<CapsuleToastLabPage> {
           ),
           LabButton(label: 'Expand current', onPressed: _expandCurrent),
           LabButton(label: 'Collapse current', onPressed: _collapseCurrent),
+          LabButton(
+            label: 'Compact only',
+            onPressed: () => _fire(
+              LabVariant.success,
+              expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+            ),
+          ),
+          LabButton(
+            label: 'Expanded only',
+            onPressed: () => _fire(
+              LabVariant.success,
+              mode: CapsuleToastMode.expanded,
+              expansionPolicy: CapsuleToastExpansionPolicy.expandedOnly,
+            ),
+          ),
           LabButton(label: 'Queue 3 events', onPressed: _queueThree),
           LabButton(label: 'Dismiss now', onPressed: _dismissCurrent),
         ],

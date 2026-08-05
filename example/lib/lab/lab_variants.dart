@@ -181,6 +181,8 @@ CapsuleToastData buildLabToast(
   LabVariant variant, {
   required bool rtl,
   CapsuleToastMode mode = CapsuleToastMode.compact,
+  CapsuleToastExpansionPolicy expansionPolicy =
+      CapsuleToastExpansionPolicy.adaptive,
   VoidCallback? onAction,
 }) {
   final LabCopy copy = labVariantCopy(variant, rtl: rtl);
@@ -222,6 +224,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       compactAction: compactAction(),
       primaryAction: primaryAction(),
       secondaryAction: secondaryAction(),
@@ -232,6 +235,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       compactAction: compactAction(),
       primaryAction: primaryAction(),
       secondaryAction: secondaryAction(),
@@ -242,6 +246,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       compactAction: compactAction(),
       primaryAction: primaryAction(),
       secondaryAction: secondaryAction(),
@@ -252,6 +257,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       compactAction: compactAction(),
       primaryAction: primaryAction(),
       secondaryAction: secondaryAction(),
@@ -263,6 +269,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       glyph: CapsuleToastGlyph.connectivity,
       displayDuration: hold,
       textDirection: direction,
@@ -271,6 +278,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       displayDuration: hold,
       textDirection: direction,
     ),
@@ -279,6 +287,7 @@ CapsuleToastData buildLabToast(
       title: copy.title,
       message: copy.message,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       glyph: CapsuleToastGlyph.success,
       displayDuration: hold,
       textDirection: direction,
@@ -286,6 +295,7 @@ CapsuleToastData buildLabToast(
     LabVariant.loading => CapsuleToastData.loading(
       title: copy.title,
       initialMode: mode,
+      expansionPolicy: expansionPolicy,
       textDirection: direction,
     ),
   };
