@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.0
 
 - `CapsuleToastData.expansionPolicy` locks a toast to
   `CapsuleToastExpansionPolicy.compactOnly` or `.expandedOnly`, disabling

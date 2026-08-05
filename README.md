@@ -26,7 +26,7 @@ Add the package:
 
 ```yaml
 dependencies:
-  capsule_toast: ^1.0.0
+  capsule_toast: ^1.1.0
 ```
 
 ```bash
