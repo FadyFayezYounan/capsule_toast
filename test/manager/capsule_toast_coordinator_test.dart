@@ -157,6 +157,74 @@ void main() {
     expect(handle.isClosed, isFalse);
   });
 
+  test('expand is a no-op on a compactOnly record', () {
+    final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
+    final CapsuleToastHandle handle = coordinator.show(
+      CapsuleToastData.success(
+        title: 'Saved',
+        expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+      ),
+    );
+
+    handle.expand();
+
+    expect(coordinator.active!.desiredMode, CapsuleToastMode.compact);
+  });
+
+  test('collapse is a no-op on an expandedOnly record', () {
+    final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
+    final CapsuleToastHandle handle = coordinator.show(
+      CapsuleToastData.success(
+        title: 'Saved',
+        expansionPolicy: CapsuleToastExpansionPolicy.expandedOnly,
+        initialMode: CapsuleToastMode.expanded,
+      ),
+    );
+
+    handle.collapse();
+
+    expect(coordinator.active!.desiredMode, CapsuleToastMode.expanded);
+  });
+
+  test('adaptive expand and collapse behave as before', () {
+    final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
+    final CapsuleToastHandle handle = coordinator.show(
+      CapsuleToastData.success(title: 'Saved'),
+    );
+
+    handle.expand();
+    expect(coordinator.active!.desiredMode, CapsuleToastMode.expanded);
+
+    handle.collapse();
+    expect(coordinator.active!.desiredMode, CapsuleToastMode.compact);
+  });
+
+  test('resolving into a different expansionPolicy applies it immediately', () {
+    final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
+    final CapsuleToastHandle handle = coordinator.show(
+      CapsuleToastData.loading(
+        title: 'Uploading',
+        expansionPolicy: CapsuleToastExpansionPolicy.compactOnly,
+      ),
+    );
+
+    handle.resolve(
+      CapsuleToastData.success(
+        title: 'Uploaded',
+        expansionPolicy: CapsuleToastExpansionPolicy.expandedOnly,
+        initialMode: CapsuleToastMode.expanded,
+      ),
+    );
+
+    expect(coordinator.active!.desiredMode, CapsuleToastMode.expanded);
+
+    // The old compactOnly restriction is gone; the new expandedOnly
+    // restriction now applies.
+    handle.expand();
+    handle.collapse();
+    expect(coordinator.active!.desiredMode, CapsuleToastMode.expanded);
+  });
+
   test('invokeAction dismisses active record when configured', () {
     final CapsuleToastCoordinator coordinator = CapsuleToastCoordinator();
     coordinator.show(CapsuleToastData.neutral(title: 'Active'));

@@ -176,6 +176,10 @@ final class CapsuleToastCoordinator extends ChangeNotifier
     if (current == null || current.token != token || current.isCompleted) {
       return;
     }
+    if (current.data.expansionPolicy ==
+        CapsuleToastExpansionPolicy.compactOnly) {
+      return;
+    }
     current.desiredMode = CapsuleToastMode.expanded;
     _notify();
   }
@@ -185,6 +189,10 @@ final class CapsuleToastCoordinator extends ChangeNotifier
     _assertNotDisposed();
     final CapsuleToastRecord? current = active;
     if (current == null || current.token != token || current.isCompleted) {
+      return;
+    }
+    if (current.data.expansionPolicy ==
+        CapsuleToastExpansionPolicy.expandedOnly) {
       return;
     }
     current.desiredMode = CapsuleToastMode.compact;

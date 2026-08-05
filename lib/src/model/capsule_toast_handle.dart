@@ -8,9 +8,15 @@ import 'capsule_toast_result.dart';
 /// Commands routed from a visible toast back to its host coordinator.
 abstract interface class CapsuleToastHandleDelegate {
   /// Requests expanded layout for the toast identified by [token].
+  ///
+  /// A no-op if that toast's [CapsuleToastData.expansionPolicy] is
+  /// [CapsuleToastExpansionPolicy.compactOnly].
   void expand(int token);
 
   /// Requests compact layout for the toast identified by [token].
+  ///
+  /// A no-op if that toast's [CapsuleToastData.expansionPolicy] is
+  /// [CapsuleToastExpansionPolicy.expandedOnly].
   void collapse(int token);
 
   /// Replaces unresolved toast data for the toast identified by [token].
@@ -32,9 +38,15 @@ abstract interface class CapsuleToastHandle {
   bool get isClosed;
 
   /// Requests expanded layout for this toast when it is active.
+  ///
+  /// A no-op if this toast's [CapsuleToastData.expansionPolicy] is
+  /// [CapsuleToastExpansionPolicy.compactOnly].
   void expand();
 
   /// Requests compact layout for this toast when it is active.
+  ///
+  /// A no-op if this toast's [CapsuleToastData.expansionPolicy] is
+  /// [CapsuleToastExpansionPolicy.expandedOnly].
   void collapse();
 
   /// Replaces unresolved toast content while preserving this handle.
