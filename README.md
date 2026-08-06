@@ -26,7 +26,7 @@ Add the package:
 
 ```yaml
 dependencies:
-  capsule_toast: ^1.1.0
+  capsule_toast: ^1.1.1
 ```
 
 ```bash
@@ -211,26 +211,38 @@ Commands issued after a handle closes are ignored.
 ## Loading resolution
 
 Resolve an in-progress toast into terminal content without creating a second
-record or changing its handle:
+record or changing its handle. This is the common "show a loading capsule,
+then morph it into success or error" flow:
 
 ```dart
-final CapsuleToastHandle handle = CapsuleToastHost.of(context).show(
-  CapsuleToastData.loading(
-    id: 'upload',
-    title: 'Uploading',
-  ),
-);
+Future<void> uploadAndNotify(BuildContext context) async {
+  final CapsuleToastHandle handle = CapsuleToastHost.of(context).show(
+    CapsuleToastData.loading(
+      id: 'upload',
+      title: 'Uploading',
+    ),
+  );
 
-try {
-  await uploadFile();
-  handle.resolve(CapsuleToastData.success(title: 'Uploaded'));
-} catch (_) {
-  handle.resolve(CapsuleToastData.error(title: 'Upload failed'));
+  try {
+    await uploadFile();
+    handle.resolve(CapsuleToastData.success(title: 'Uploaded'));
+  } catch (_) {
+    handle.resolve(CapsuleToastData.error(title: 'Upload failed'));
+  }
 }
 ```
 
-Only an unresolved loading record can be resolved. The new toast data supplies
-the resolved record's type, content, lifetime, and presentation.
+Only an unresolved loading record can be resolved. The same handle keeps
+working afterwards — `expand()`, `collapse()`, `dismiss()`, and
+`handle.closed` all still apply to the resolved toast. The new toast data
+supplies the resolved record's type, content, lifetime, and presentation;
+`CapsuleToastData.loading` is persistent by default, so the capsule stays up
+exactly until you resolve or dismiss it.
+
+The [interactive example](https://github.com/FadyFayezYounan/capsule_toast/tree/main/example)'s
+"Loading" variant demonstrates the same flow end to end, chaining
+`CapsuleToastData.loading` into `CapsuleToastData.success` after a simulated
+delay.
 
 ## Actions
 

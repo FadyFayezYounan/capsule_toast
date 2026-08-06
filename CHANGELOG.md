@@ -1,3 +1,11 @@
+## 1.1.1
+
+- Internal: toast hosting, placement, motion synchronization, and interaction
+  are now composed from focused, Flutter-style widgets instead of one large
+  layer. No public API or observable behavior change.
+- docs: expand the README's loading-resolution example into a copy-pastable
+  loading-then-success-or-error flow.
+
 ## 1.1.0
 
 - `CapsuleToastData.expansionPolicy` locks a toast to
