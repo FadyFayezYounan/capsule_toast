@@ -12,7 +12,7 @@ import 'package:capsule_toast/src/manager/capsule_toast_record.dart';
 import 'package:capsule_toast/src/motion/capsule_motion_controller.dart';
 import 'package:capsule_toast/src/widgets/capsule_toast_animated_slot.dart';
 import 'package:capsule_toast/src/widgets/capsule_toast_content.dart';
-import 'package:capsule_toast/src/widgets/capsule_toast_layer.dart';
+import 'package:capsule_toast/src/widgets/capsule_toast_presentation.dart';
 import 'package:capsule_toast/src/widgets/capsule_toast_surface.dart';
 
 export 'package:capsule_toast/src/motion/capsule_motion_controller.dart'
@@ -157,11 +157,13 @@ Future<ToastTestHarness> pumpToastHarness(
     textScaler: textScaler,
   );
   final CapsuleToastManager manager = CapsuleToastHost.of(context);
-  final CapsuleToastLayer layer = tester.widget(find.byType(CapsuleToastLayer));
+  final CapsuleToastPresentation presentation = tester.widget(
+    find.byType(CapsuleToastPresentation),
+  );
   return ToastTestHarness(
     manager: manager,
-    handle: layer.coordinator.active!.handle,
-    motion: layer.motion,
+    handle: presentation.coordinator.active!.handle,
+    motion: presentation.motion,
   );
 }
 
@@ -241,8 +243,10 @@ double capsuleOpacity(WidgetTester tester) => capsuleMotion(tester).opacity;
 
 /// Current motion snapshot for the active capsule.
 CapsuleMotionSnapshot capsuleMotion(WidgetTester tester) {
-  final CapsuleToastLayer layer = tester.widget(find.byType(CapsuleToastLayer));
-  return layer.motion.value;
+  final CapsuleToastPresentation presentation = tester.widget(
+    find.byType(CapsuleToastPresentation),
+  );
+  return presentation.motion.value;
 }
 
 /// Zero-tolerance golden comparator (any differing pixel fails).

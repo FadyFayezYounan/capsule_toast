@@ -8,7 +8,8 @@ import '../manager/capsule_toast_manager.dart';
 import '../motion/capsule_motion_controller.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 import '../theme/capsule_toast_theme.dart';
-import '../widgets/capsule_toast_layer.dart';
+import '../widgets/capsule_toast_presentation.dart';
+import '../widgets/capsule_toast_viewport.dart';
 
 /// Application-owned host that exposes toast queue control to descendants.
 class CapsuleToastHost extends StatefulWidget {
@@ -81,6 +82,25 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
   late final CapsuleToastCoordinator _coordinator;
   CapsuleMotionController? _motion;
 
+  // Owned for the lifetime of this state so the toast layer gets its own
+  // Overlay ancestor: the layer sits beside `widget.child` (see build()
+  // below), not inside its Navigator, so toast content that needs
+  // Overlay.of(context) (Tooltip, PopupMenuButton, text-selection toolbars,
+  // ...) would otherwise throw "No Overlay widget found". Created once,
+  // since Overlay.initialEntries is only consumed on first mount; the
+  // builder reads _motion lazily because didChangeDependencies always runs
+  // before this entry's builder is first invoked.
+  late final OverlayEntry _toastEntry = OverlayEntry(
+    builder: (BuildContext context) => CapsuleToastViewport(
+      coordinator: _coordinator,
+      child: CapsuleToastPresentation(
+        coordinator: _coordinator,
+        motion: _motion!,
+        vsync: this,
+      ),
+    ),
+  );
+
   @override
   void initState() {
     super.initState();
@@ -118,6 +138,9 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
 
   @override
   void dispose() {
+    _toastEntry
+      ..remove()
+      ..dispose();
     _motion?.dispose();
     _motion = null;
     _coordinator.dispose();
@@ -128,20 +151,36 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
   Widget build(BuildContext context) {
     return _CapsuleToastScope(
       manager: _coordinator,
-      child: Stack(
-        fit: StackFit.expand,
-        clipBehavior: Clip.none,
+      child: CustomMultiChildLayout(
+        delegate: _CapsuleToastHostLayout(),
         children: <Widget>[
-          widget.child,
-          CapsuleToastLayer(
-            coordinator: _coordinator,
-            motion: _motion!,
-            vsync: this,
+          LayoutId(id: _CapsuleToastHostSlot.body, child: widget.child),
+          LayoutId(
+            id: _CapsuleToastHostSlot.presentation,
+            child: Overlay(initialEntries: <OverlayEntry>[_toastEntry]),
           ),
         ],
       ),
     );
   }
+}
+
+enum _CapsuleToastHostSlot { body, presentation }
+
+class _CapsuleToastHostLayout extends MultiChildLayoutDelegate {
+  _CapsuleToastHostLayout();
+
+  @override
+  void performLayout(Size size) {
+    final BoxConstraints constraints = BoxConstraints.tight(size);
+    layoutChild(_CapsuleToastHostSlot.body, constraints);
+    positionChild(_CapsuleToastHostSlot.body, Offset.zero);
+    layoutChild(_CapsuleToastHostSlot.presentation, constraints);
+    positionChild(_CapsuleToastHostSlot.presentation, Offset.zero);
+  }
+
+  @override
+  bool shouldRelayout(_CapsuleToastHostLayout oldDelegate) => false;
 }
 
 class _CapsuleToastScope extends InheritedWidget {

@@ -120,9 +120,10 @@ void main() {
       viewPadding: const EdgeInsets.only(top: 44),
     );
 
+    // 44 view padding plus the default 15 vertical offset.
     expect(
       tester.getTopLeft(find.byKey(capsuleSurfaceKey)).dy,
-      greaterThanOrEqualTo(44),
+      closeTo(59, 0.01),
     );
   });
 

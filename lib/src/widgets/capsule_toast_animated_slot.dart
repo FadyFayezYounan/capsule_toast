@@ -55,7 +55,7 @@ class CapsuleToastAnimationScope extends InheritedWidget {
     assert(
       scope != null,
       'CapsuleToastAnimatedSlot requires a CapsuleToastAnimationScope '
-      'ancestor installed by CapsuleToastLayer.',
+      'ancestor installed by CapsuleToastPresentation.',
     );
     return scope!;
   }
