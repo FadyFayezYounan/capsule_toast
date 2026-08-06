@@ -247,6 +247,7 @@ Create `test/performance/capsule_toast_churn_test.dart`:
 ```dart
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
