@@ -495,3 +495,11 @@ for every constructor and property.
 ## License
 
 BSD 3-Clause. See [LICENSE](LICENSE). Copyright 2026 The Capsule Toast Authors.
+
+## Performance
+
+`capsule_toast` performs zero per-frame work when idle — no tickers, no
+timers, no rebuild propagation — and its only permanent cost is a single
+overlay layer. Regression guards and frame-time benchmarks verify this
+continuously. See [doc/performance.md](doc/performance.md) for the full
+contract, the per-host object inventory, and how to run the benchmarks.
