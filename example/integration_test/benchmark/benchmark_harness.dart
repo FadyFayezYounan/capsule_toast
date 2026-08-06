@@ -81,14 +81,17 @@ double percentileMs(
   return values[index];
 }
 
-/// Fraction of frames whose total span exceeds one 60Hz vsync (16667µs).
+/// Fraction of frames whose actual build+raster work exceeded one 60Hz
+/// frame budget (16667µs), ignoring emulation/simulator latency in
+/// [FrameTiming.totalSpan].
 double droppedFrameRatio(List<FrameTiming> timings) {
   if (timings.isEmpty) {
     return 1;
   }
   int dropped = 0;
   for (final FrameTiming timing in timings) {
-    if (timing.totalSpan > const Duration(microseconds: 16667)) {
+    if (timing.buildDuration + timing.rasterDuration >
+        const Duration(microseconds: 16667)) {
       dropped += 1;
     }
   }
