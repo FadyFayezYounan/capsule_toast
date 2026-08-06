@@ -46,7 +46,8 @@ flutter test test/performance
 - `capsule_toast_leak_test.dart` — 30 host mount/unmount cycles and 50
   show/clear cycles; leak tracking is enabled for the whole directory by
   `flutter_test_config.dart`, and the framework's leak reporter fails the
-  run on any leaked coordinator, ticker, overlay entry, or record.
+  run on any leaked coordinator, motion controller, ticker, or overlay
+  entry.
 
 ### Frame-time benchmarks (real device, report-only)
 
@@ -56,21 +57,50 @@ flutter test integration_test/benchmark -d <device>
 ```
 
 Each scenario runs against the with-host and (for idle) no-host apps and
-prints p50/p95/p99/max for build and raster in milliseconds, plus
-the idle delta vs baseline and the dropped-frame ratio. Thresholds are soft:
-violations print `WARNING:` lines and never fail the run.
+prints p50/p95/p99/max for build and raster in milliseconds, plus the
+dropped-frame ratio, plus a WARNING when the idle p95 build delta vs
+baseline exceeds its 4ms budget. Thresholds are soft: violations print
+`WARNING:` lines and never fail the run.
+
+The entrance scenario stops pumping (and stops collecting) as soon as the
+active capsule's motion snapshot reports `isSettled`; the exit scenario
+stops when the coordinator reports no active record. Both carry a 300-frame
+backstop so a settle-detection bug can never hang the run. The churn and
+saturation bursts keep flat 120-frame windows (a burst is a burst; mixing
+is inherent there).
+
+Thresholds:
+
+- **Idle p95 build delta vs baseline: 4ms.** At sub-millisecond scale the
+  idle delta is within measurement noise on simulators, so this tripwire
+  only detects 10x-style regressions; p99/max are the reliable animation
+  signals.
+- **Animation p99 build: 30ms.**
+- **Dropped-frame ratio: 10%.** A frame counts as dropped when its
+  build+raster work exceeds 16667µs (one 60Hz frame).
 
 ## Measured numbers
 
 iPhone 17 Pro simulator (iOS 26.1), Flutter 3.44.6, 2026-08-06.
-Dropped-frame ratios on this run: 0-1.7%. Note the single entrance max
-30.027ms outlier frame (p99 13.9ms).
+Entrance and exit windows are gated on the animation settling (see
+benchmarks below): entrance collects ~16-17 frames and exit collects the
+entrance settle plus the exit completion (~22 frames), so p50/p95 report
+animation frames only. In the entrance window the single cold-start frame
+that first builds the toast subtree (29.8ms this run; 19.9-36.0ms across
+runs) lands on p95/p99/max — a known one-off, not sustained cost (p50
+3.3ms). Dropped-frame ratios this run: entrance 12.5% (the cold frame
+exceeds one 60Hz budget; occasionally a second frame joins it), all other
+scenarios 0%. The idle p95 build delta vs baseline (with host 0.833ms vs
+baseline 0.779ms this run) flips sign run to run (±0.05ms): at
+sub-millisecond scale it is measurement noise on simulators, so the 4ms
+tripwire only detects 10x-style regressions, and p99/max are the reliable
+animation signals.
 
 | Scenario | Metric | p50 | p95 | p99 | max |
 | --- | --- | --- | --- | --- | --- |
-| idle baseline | build | 0.520 | 0.791 | 0.842 | 3.048 |
-| idle with host | build | 0.366 | 0.606 | 0.696 | 0.698 |
-| entrance | build | 1.905 | 4.853 | 13.915 | 30.027 |
-| exit | build | 1.492 | 3.173 | 3.592 | 7.385 |
-| churn burst | build | 2.018 | 3.020 | 4.090 | 15.610 |
-| saturation | build | 1.923 | 3.294 | 8.815 | 8.943 |
+| idle baseline | build | 0.542 | 0.779 | 1.957 | 2.342 |
+| idle with host | build | 0.582 | 0.833 | 1.010 | 1.022 |
+| entrance | build | 3.268 | 29.830 | 29.830 | 29.830 |
+| exit | build | 2.923 | 5.251 | 9.432 | 9.432 |
+| churn burst | build | 2.701 | 4.635 | 6.119 | 12.464 |
+| saturation | build | 2.726 | 4.053 | 7.186 | 7.900 |
