@@ -17,6 +17,9 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
+  leak_tracker_flutter_testing: ^3.0.10
 
 topics:
   - toast
