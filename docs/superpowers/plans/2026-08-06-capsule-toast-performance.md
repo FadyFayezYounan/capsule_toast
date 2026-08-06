@@ -93,6 +93,7 @@ Create a scratch test `test/performance/_scratch_test.dart`:
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:leak_tracker_flutter_testing/leak_tracker_flutter_testing.dart';
 
 void main() {
   testWidgets('scratch', (WidgetTester tester) async {
@@ -363,8 +364,9 @@ void main() {
       );
     }
 
-    // 1 active + at most 20 queued; queueLength counts only queued records.
-    expect(manager.queueLength, 19,
+    // 1 active + at most 20 queued; queueLength counts only queued records,
+    // and the coordinator evicts so the queue holds exactly maximumQueueLength.
+    expect(manager.queueLength, 20,
         reason: 'the queue must never exceed maximumQueueLength');
     await tester.pump();
 
@@ -692,8 +694,7 @@ import 'package:capsule_toast/capsule_toast.dart';
 import 'benchmark_harness.dart';
 
 void main() {
-  final IntegrationTestWidgetsFlutterBinding binding =
-      IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('idle overhead: host vs baseline', (WidgetTester tester) async {
     final Map<String, List<FrameTiming>> results = <String, List<FrameTiming>>{};
