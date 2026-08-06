@@ -61,6 +61,40 @@ void main() {
     expect(CapsuleToastHost.maybeOf(context), isNull);
   });
 
+  testWidgets('host uses explicit full-size body and presentation slots', (
+    WidgetTester tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    Size? bodySize;
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: SizedBox(
+          width: 320,
+          height: 640,
+          child: CapsuleToastHost(
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                bodySize = constraints.biggest;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(bodySize, const Size(320, 640));
+    expect(tester.getSize(find.byType(Overlay)), const Size(320, 640));
+    expect(find.byType(CustomMultiChildLayout), findsOneWidget);
+    expect(find.byType(Stack), findsNothing);
+  });
+
   testWidgets('toast animation does not rebuild the application child', (
     WidgetTester tester,
   ) async {
@@ -89,6 +123,42 @@ void main() {
 
     expect(builds, 1);
     expect(find.text('Saved'), findsOneWidget);
+  });
+
+  testWidgets('toast content with a Tooltip-bearing widget builds without '
+      'a "No Overlay widget found" error', (WidgetTester tester) async {
+    late BuildContext commandContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (BuildContext context, Widget? child) {
+          return CapsuleToastHost(child: child!);
+        },
+        home: Builder(
+          builder: (BuildContext context) {
+            commandContext = context;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    CapsuleToastHost.of(commandContext).show(
+      CapsuleToastData.custom(
+        title: 'Dismissible',
+        compactBuilder: (BuildContext context, _) {
+          return IconButton(
+            tooltip: 'Dismiss',
+            icon: const Icon(Icons.close),
+            onPressed: () {},
+          );
+        },
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(tester.takeException(), isNull);
+    expect(find.byIcon(Icons.close), findsOneWidget);
   });
 
   testWidgets('disposing host completes active handles', (
