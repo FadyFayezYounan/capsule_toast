@@ -34,7 +34,7 @@ Pump a host with no toast, settle:
 
 - `tester.binding.transientCallbackCount == 0` (no tickers).
 - `tester.binding.hasScheduledFrame == false` (no scheduled animation frames).
-- No pending `Timer`s (verified with `package:fake_async`, added as an explicit dev dependency to satisfy the `depend_on_referenced_packages` lint). Note: `testWidgets` already fails automatically on pending timers at teardown; the explicit assertion makes the guarantee readable and immediate.
+- No pending `Timer`s. `testWidgets` already fails any test whose timers are still pending at teardown — the idle certificate relies on that automatic check (the test binding's `FakeAsync` is private, so there is no explicit in-test assertion).
 - The presentation subtree renders `SizedBox.shrink()`.
 - A build-count probe widget installed in the app body is **not** rebuilt across 60 subsequent idle pumps — proves no rebuild propagation into app content.
 
@@ -53,12 +53,12 @@ Pump a host with no toast, settle:
 
 ### 1.4 Leak / accumulation
 
-- 30 host mount/unmount cycles, then `LeakTesting.collectGarbage()` (Flutter built-in leak tracker, available in Flutter 3.44) — assert zero leaked allocations. If the `LeakTesting` API differs on the pinned Flutter version, fall back to explicit assertions: every coordinator/motion controller is disposed (no listener counts, ticker disposed), verified directly on harness-created instances.
+- 30 host mount/unmount cycles, plus 50 show/clear cycles on a persistent host. `test/performance/flutter_test_config.dart` calls `LeakTesting.enable()` (leak tracking is opt-in; `leak_tracker_flutter_testing` added as a dev dependency), so every test in `test/performance/` is leak-checked automatically and the default reporter fails the run on any leaked coordinator, motion controller, ticker, overlay entry, or record. If the run reports framework-internal false positives, add targeted `IgnoredLeaks` entries with justification.
 - Documents and asserts the per-host object inventory: exactly 1 coordinator + 1 motion controller + 1 transient ticker.
 
 ## Section 2: Frame-Time Benchmarks — `integration_test/benchmark/`
 
-Adds `integration_test` to dev dependencies.
+Adds `integration_test` (sdk) and `leak_tracker_flutter_testing` to dev dependencies.
 
 ### 2.1 Harness
 
