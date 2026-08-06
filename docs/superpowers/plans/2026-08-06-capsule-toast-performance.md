@@ -15,7 +15,7 @@
 - Follow existing test conventions: reuse helpers from `test/support/test_app.dart` (e.g., `pumpToast`, `pumpToastHarness`, `capsuleToastTestApp`) where they fit.
 - `flutter analyze` must stay clean; `flutter test` must stay green.
 - Conventional commit messages (existing repo style: `test:`, `feat:`, `docs:`, `chore:`).
-- Benchmarks run locally on a device/simulator: `flutter test integration_test/benchmark -d <device>`. No CI workflow in this iteration.
+- Benchmarks run locally on a device/simulator from the example app: `flutter test integration_test/benchmark -d <device>` (workdir `example/`). No CI workflow in this iteration.
 - Thresholds are soft: violations print warnings, never fail the run.
 
 ## File Structure
@@ -26,8 +26,8 @@
 - Create: `test/performance/capsule_toast_churn_test.dart` — 60 show/clear cycles return to idle.
 - Create: `test/performance/capsule_toast_saturation_test.dart` — 100 enqueues never exceed `maximumQueueLength`.
 - Create: `test/performance/capsule_toast_leak_test.dart` — host mount/unmount + toast cycles; framework leak reporter must stay silent.
-- Create: `integration_test/benchmark/benchmark_harness.dart` — `BenchmarkApp`, `FrameTimingCollector`, percentile math, report printer, soft-threshold warnings.
-- Create: `integration_test/benchmark/frame_time_benchmark_test.dart` — 5 scenarios (idle, entrance, exit, churn burst, saturation).
+- Create: `example/integration_test/benchmark/benchmark_harness.dart` — `BenchmarkApp`, `FrameTimingCollector`, percentile math, report printer, soft-threshold warnings.
+- Create: `example/integration_test/benchmark/frame_time_benchmark_test.dart` — 5 scenarios (idle, entrance, exit, churn burst, saturation). (Moved here in Task 7: the library package has no host app, so `flutter test integration_test/...` fails at the package root; the example app is the runnable home. `example/pubspec.yaml` gains the `integration_test` sdk dev dependency.)
 - Create: `doc/performance.md` — contract, inventory, how to run, measured-numbers table.
 - Modify: `README.md` — add a Performance section linking `doc/performance.md`.
 
@@ -950,6 +950,7 @@ flutter test test/performance
 ### Frame-time benchmarks (real device, report-only)
 
 ```sh
+cd example
 flutter test integration_test/benchmark -d <device>
 ```
 
