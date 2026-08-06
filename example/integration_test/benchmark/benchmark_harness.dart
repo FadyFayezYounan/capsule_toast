@@ -122,7 +122,6 @@ void printBenchmarkWarning(String message) {
 Duration Function(FrameTiming) _metric(String metric) {
   return switch (metric) {
     'build' => (FrameTiming t) => t.buildDuration,
-    'layout' => (FrameTiming t) => t.buildDuration,
     'raster' => (FrameTiming t) => t.rasterDuration,
     _ => (FrameTiming t) => t.buildDuration,
   };

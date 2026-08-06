@@ -6,8 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
+import 'package:capsule_toast/src/manager/capsule_toast_coordinator.dart';
+import 'package:capsule_toast/src/widgets/capsule_toast_presentation.dart';
 
 import 'benchmark_harness.dart';
+
+/// Backstop so a settle-detection bug can never hang the benchmark run.
+const int _settleBackstopFrames = 300;
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -41,27 +46,24 @@ void main() {
   });
 
   testWidgets('entrance animation frames', (WidgetTester tester) async {
-    final List<FrameTiming> timings = await _runHostedScenario(tester, (
+    final List<FrameTiming> timings = await _collectEntrance(tester, (
       BuildContext context,
     ) {
       CapsuleToastHost.of(
         context,
       ).show(CapsuleToastData.success(title: 'entrance'));
-    }, frames: 120);
+    });
     _reportAndWarn('entrance', timings);
   });
 
   testWidgets('exit animation frames', (WidgetTester tester) async {
-    final List<FrameTiming> timings = await _runHostedScenario(
-      tester,
-      (BuildContext context) {
-        CapsuleToastHost.of(
-          context,
-        ).show(CapsuleToastData.success(title: 'exit'));
-      },
-      frames: 60,
-      then: (BuildContext context) => CapsuleToastHost.of(context).clear(),
-    );
+    final List<FrameTiming> timings = await _collectExit(tester, (
+      BuildContext context,
+    ) {
+      CapsuleToastHost.of(
+        context,
+      ).show(CapsuleToastData.success(title: 'exit'));
+    });
     _reportAndWarn('exit', timings);
   });
 
@@ -145,6 +147,74 @@ Future<List<FrameTiming>> _runHostedScenario(
   }
   await collector.stop();
   return collector.timings;
+}
+
+/// Collects frames from [drive] until the entrance animation settles, so the
+/// reported percentiles measure animation frames only, not a flat settled
+/// tail. [_settleBackstopFrames] caps the window.
+Future<List<FrameTiming>> _collectEntrance(
+  WidgetTester tester,
+  void Function(BuildContext context) drive,
+) async {
+  final BenchmarkApp app = BenchmarkApp(withHost: true);
+  await tester.pumpWidget(app);
+  await tester.pump(const Duration(milliseconds: 100));
+
+  final BuildContext context = app.homeContext.value!;
+  final FrameTimingCollector collector = FrameTimingCollector()..start();
+  // ignore: use_build_context_synchronously
+  drive(context);
+  for (int i = 0; i < _settleBackstopFrames; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (_motionSettled(tester)) {
+      break;
+    }
+  }
+  await collector.stop();
+  return collector.timings;
+}
+
+/// Collects entrance frames until settlement, then exit frames until the
+/// coordinator reports no active record. [_settleBackstopFrames] caps each
+/// phase.
+Future<List<FrameTiming>> _collectExit(
+  WidgetTester tester,
+  void Function(BuildContext context) drive,
+) async {
+  final BenchmarkApp app = BenchmarkApp(withHost: true);
+  await tester.pumpWidget(app);
+  await tester.pump(const Duration(milliseconds: 100));
+
+  final BuildContext context = app.homeContext.value!;
+  final CapsuleToastCoordinator coordinator =
+      // ignore: use_build_context_synchronously
+      CapsuleToastHost.of(context) as CapsuleToastCoordinator;
+  final FrameTimingCollector collector = FrameTimingCollector()..start();
+  // ignore: use_build_context_synchronously
+  drive(context);
+  for (int i = 0; i < _settleBackstopFrames; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (_motionSettled(tester)) {
+      break;
+    }
+  }
+  coordinator.clear();
+  for (int i = 0; i < _settleBackstopFrames; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    if (coordinator.active == null) {
+      break;
+    }
+  }
+  await collector.stop();
+  return collector.timings;
+}
+
+/// Whether the active capsule's motion snapshot reports settlement.
+bool _motionSettled(WidgetTester tester) {
+  final CapsuleToastPresentation presentation = tester.widget(
+    find.byType(CapsuleToastPresentation),
+  );
+  return presentation.motion.value.isSettled;
 }
 
 void _reportAndWarn(String scenario, List<FrameTiming> timings) {
