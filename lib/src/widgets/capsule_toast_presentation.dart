@@ -109,6 +109,7 @@ class _CapsuleToastPresentationState extends State<CapsuleToastPresentation> {
     // attached until dispose() would let that notification reach a haptics
     // handler that reads an already-deactivated ancestor's Theme.
     _motion.removeListener(_handleMotionChanged);
+    widget.coordinator.removeListener(_handleCoordinatorChanged);
     super.deactivate();
   }
 
@@ -116,6 +117,7 @@ class _CapsuleToastPresentationState extends State<CapsuleToastPresentation> {
   void activate() {
     super.activate();
     _motion.addListener(_handleMotionChanged);
+    widget.coordinator.addListener(_handleCoordinatorChanged);
   }
 
   @override
@@ -142,9 +144,12 @@ class _CapsuleToastPresentationState extends State<CapsuleToastPresentation> {
       return;
     }
     final CapsuleToastRecord? record = widget.coordinator.active;
+    if (record == null || !_motion.value.isSettled) {
+      return;
+    }
     final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
       context,
-    ).merge(record?.data.motionTheme);
+    ).merge(record.data.motionTheme);
     final bool reducedMotion = _isReducedMotion(motionTheme);
     _synchronizer.handleMotionChanged(
       record: record,
