@@ -532,7 +532,7 @@ import 'package:capsule_toast/capsule_toast.dart';
 /// MaterialApp with an optional CapsuleToastHost, plus a captured context
 /// used by scenarios to reach CapsuleToastHost.of().
 class BenchmarkApp extends StatelessWidget {
-  const BenchmarkApp({super.key, required this.withHost});
+  BenchmarkApp({super.key, required this.withHost});
 
   /// Whether the CapsuleToastHost overlay layer is installed.
   final bool withHost;
@@ -640,7 +640,6 @@ void printBenchmarkWarning(String message) {
 Duration Function(FrameTiming) _metric(String metric) {
   return switch (metric) {
     'build' => (FrameTiming t) => t.buildDuration,
-    'layout' => (FrameTiming t) => t.layoutDuration,
     'raster' => (FrameTiming t) => t.rasterDuration,
     _ => (FrameTiming t) => t.buildDuration,
   };
@@ -708,24 +707,24 @@ void main() {
 
     final List<FrameTiming> baseline = results['baseline']!;
     final List<FrameTiming> host = results['with host']!;
-    for (final String metric in const <String>['build', 'layout', 'raster']) {
+    for (final String metric in const <String>['build', 'raster']) {
       printBenchmarkRow('idle baseline', metric, baseline);
       printBenchmarkRow('idle with host', metric, host);
     }
 
-    final double deltaP95BuildLayout = (percentileMs(
+    final double deltaP95Build = (percentileMs(
               host,
               0.95,
-              (FrameTiming t) => t.buildDuration + t.layoutDuration,
+              (FrameTiming t) => t.buildDuration,
             ) -
             percentileMs(
               baseline,
               0.95,
-              (FrameTiming t) => t.buildDuration + t.layoutDuration,
+              (FrameTiming t) => t.buildDuration,
             ));
-    if (deltaP95BuildLayout > 4) {
+    if (deltaP95Build > 4) {
       printBenchmarkWarning(
-        'idle p95 build+layout delta is ${deltaP95BuildLayout.toStringAsFixed(3)}ms '
+        'idle p95 build delta is ${deltaP95Build.toStringAsFixed(3)}ms '
         '(budget 4ms). Investigate the always-in-tree host/overlay cost.',
       );
     }
@@ -838,17 +837,17 @@ Future<List<FrameTiming>> _runHostedScenario(
 }
 
 void _reportAndWarn(String scenario, List<FrameTiming> timings) {
-  for (final String metric in const <String>['build', 'layout', 'raster']) {
+  for (final String metric in const <String>['build', 'raster']) {
     printBenchmarkRow(scenario, metric, timings);
   }
-  final double p99BuildLayout = percentileMs(
+  final double p99Build = percentileMs(
     timings,
     0.99,
-    (FrameTiming t) => t.buildDuration + t.layoutDuration,
+    (FrameTiming t) => t.buildDuration,
   );
-  if (p99BuildLayout > 30) {
+  if (p99Build > 30) {
     printBenchmarkWarning(
-      '$scenario p99 build+layout is ${p99BuildLayout.toStringAsFixed(3)}ms '
+      '$scenario p99 build is ${p99Build.toStringAsFixed(3)}ms '
       '(budget 30ms).',
     );
   }
@@ -875,7 +874,7 @@ Run: `flutter test integration_test/benchmark -d <device>` (use any connected si
 
 Expected: prints five scenario tables (idle baseline, idle with host, entrance, exit, churn burst, saturation) with p50/p95/p99/max columns in ms, the idle delta, and any `WARNING:` lines. No test failures.
 
-If the idle p95 build+layout delta exceeds 4ms, or any animation p99 exceeds 30ms, do not change code in this task — the numbers go into `doc/performance.md` (Task 8) and are the starting point for a follow-up optimization design.
+If the idle p95 build delta exceeds 4ms, or any animation p99 exceeds 30ms, do not change code in this task — the numbers go into `doc/performance.md` (Task 8) and are the starting point for a follow-up optimization design.
 
 - [ ] **Step 4: Commit**
 
@@ -955,7 +954,7 @@ flutter test integration_test/benchmark -d <device>
 ```
 
 Each scenario runs against the with-host and (for idle) no-host apps and
-prints p50/p95/p99/max for build, layout, and raster in milliseconds, plus
+prints p50/p95/p99/max for build and raster in milliseconds, plus
 the idle delta vs baseline and the dropped-frame ratio. Thresholds are soft:
 violations print `WARNING:` lines and never fail the run.
 
@@ -965,12 +964,12 @@ Filled in on the first benchmark run (device, date):
 
 | Scenario | Metric | p50 | p95 | p99 | max |
 | --- | --- | --- | --- | --- | --- |
-| idle baseline | build+layout | | | | |
-| idle with host | build+layout | | | | |
-| entrance | build+layout | | | | |
-| exit | build+layout | | | | |
-| churn burst | build+layout | | | | |
-| saturation | build+layout | | | | |
+| idle baseline | build | | | | |
+| idle with host | build | | | | |
+| entrance | build | | | | |
+| exit | build | | | | |
+| churn burst | build | | | | |
+| saturation | build | | | | |
 ```
 
 - [ ] **Step 2: Fill in measured numbers**
