@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
 import 'package:capsule_toast/src/motion/capsule_lifecycle.dart';
+import 'package:capsule_toast/src/widgets/capsule_toast_presentation.dart';
 
 import '../support/test_app.dart';
 
@@ -143,6 +144,9 @@ void main() {
     );
     await tester.pump(const Duration(milliseconds: 180));
     final Element surfaceBefore = tester.element(find.byKey(capsuleSurfaceKey));
+    final Element presentationBefore = tester.element(
+      find.byType(CapsuleToastPresentation),
+    );
 
     harness.manager.show(
       CapsuleToastData.success(title: 'Uploaded'),
@@ -152,6 +156,10 @@ void main() {
 
     expect(find.byKey(capsuleSurfaceKey), findsOneWidget);
     expect(tester.element(find.byKey(capsuleSurfaceKey)), same(surfaceBefore));
+    expect(
+      tester.element(find.byType(CapsuleToastPresentation)),
+      same(presentationBefore),
+    );
   });
 
   testWidgets('enqueue after exit promotes with fresh entrance', (

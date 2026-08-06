@@ -91,7 +91,16 @@ void main() {
 
     expect(bodySize, const Size(320, 640));
     expect(tester.getSize(find.byType(Overlay)), const Size(320, 640));
-    expect(find.byType(CustomMultiChildLayout), findsOneWidget);
+    // The host owns exactly one slot layout, the one hosting the presentation
+    // Overlay. CapsuleToastViewport contributes its own layout below that
+    // Overlay, so scope the finder rather than counting globally.
+    expect(
+      find.ancestor(
+        of: find.byType(Overlay),
+        matching: find.byType(CustomMultiChildLayout),
+      ),
+      findsOneWidget,
+    );
     expect(find.byType(Stack), findsNothing);
   });
 

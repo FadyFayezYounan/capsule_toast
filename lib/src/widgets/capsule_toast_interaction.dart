@@ -14,7 +14,8 @@ import '../theme/capsule_toast_motion_theme.dart';
 /// Focus scope and gesture surface for the active capsule toast.
 ///
 /// Owns pointer, hover, drag, long-press, and focus state so
-/// `CapsuleToastLayer` can stay focused on motion sequencing and layout.
+/// `CapsuleToastPresentation` can stay focused on motion sequencing and
+/// layout.
 final class CapsuleToastInteraction extends StatefulWidget {
   /// Creates an interaction surface around [child] for [record].
   const CapsuleToastInteraction({

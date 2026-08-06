@@ -1,7 +1,5 @@
 // Copyright 2026 The Capsule Toast Authors. All rights reserved.
 
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -20,10 +18,15 @@ import 'capsule_toast_measure.dart';
 import 'capsule_toast_motion_synchronizer.dart';
 import 'capsule_toast_surface.dart';
 
-/// Overlay that renders the active capsule toast for [coordinator].
-class CapsuleToastLayer extends StatefulWidget {
-  /// Creates a layer that paints the active toast for [coordinator].
-  const CapsuleToastLayer({
+/// Paints the active capsule toast for [coordinator].
+///
+/// Placement is not this widget's concern: `CapsuleToastViewport` positions
+/// the presentation and hands down constraints already clamped to the resolved
+/// horizontal inset and maximum width. This widget owns motion sequencing,
+/// theme resolution, and the animated capsule surface only.
+final class CapsuleToastPresentation extends StatefulWidget {
+  /// Creates a presentation that paints the active toast for [coordinator].
+  const CapsuleToastPresentation({
     super.key,
     required this.coordinator,
     required this.motion,
@@ -41,7 +44,8 @@ class CapsuleToastLayer extends StatefulWidget {
   final TickerProvider vsync;
 
   @override
-  State<CapsuleToastLayer> createState() => _CapsuleToastLayerState();
+  State<CapsuleToastPresentation> createState() =>
+      _CapsuleToastPresentationState();
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -56,7 +60,7 @@ class CapsuleToastLayer extends StatefulWidget {
   }
 }
 
-class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
+class _CapsuleToastPresentationState extends State<CapsuleToastPresentation> {
   bool _syncScheduled = false;
 
   late CapsuleToastMotionSynchronizer _synchronizer;
@@ -76,7 +80,7 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   }
 
   @override
-  void didUpdateWidget(covariant CapsuleToastLayer oldWidget) {
+  void didUpdateWidget(covariant CapsuleToastPresentation oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.coordinator != widget.coordinator) {
       oldWidget.coordinator.removeListener(_handleCoordinatorChanged);
@@ -244,10 +248,6 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     final bool reducedMotion = _isReducedMotion(motionTheme);
     _motion.setReducedMotion(reducedMotion);
 
-    final double topInset = visualTheme.useSafeArea!
-        ? MediaQuery.viewPaddingOf(context).top + visualTheme.verticalOffset!
-        : visualTheme.verticalOffset!;
-
     final TextDirection textDirection =
         record.data.textDirection ?? Directionality.of(context);
     final String announcement = composeCapsuleToastAnnouncement(record.data);
@@ -271,83 +271,63 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       ),
     );
 
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Padding(
-        padding: EdgeInsetsDirectional.only(
-          start: visualTheme.horizontalInset!,
-          end: visualTheme.horizontalInset!,
-        ),
-        child: LayoutBuilder(
-          builder: (BuildContext context, BoxConstraints constraints) {
-            final double measureMaxWidth = math.min(
-              visualTheme.maximumWidth!,
-              constraints.maxWidth,
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return AnimatedBuilder(
+          animation: _motion,
+          child: interactiveChild,
+          builder: (BuildContext context, Widget? child) {
+            final CapsuleMotionSnapshot snapshot = _motion.value;
+            final double iconTravel = _resolveIconTravel(
+              record: record,
+              visualTheme: visualTheme,
+              textDirection: textDirection,
+              liveSize: snapshot.size,
             );
-
-            return AnimatedBuilder(
-              animation: _motion,
-              child: interactiveChild,
-              builder: (BuildContext context, Widget? child) {
-                final CapsuleMotionSnapshot snapshot = _motion.value;
-                final double iconTravel = _resolveIconTravel(
-                  record: record,
-                  visualTheme: visualTheme,
-                  textDirection: textDirection,
-                  liveSize: snapshot.size,
-                );
-                return Transform.translate(
-                  offset: Offset(0, snapshot.verticalOffset),
-                  child: Padding(
-                    padding: EdgeInsets.only(top: topInset),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: Opacity(
-                        opacity: snapshot.opacity,
-                        // Scales about the capsule's own centre, matching the
-                        // reference's default transform origin.
-                        child: Transform.scale(
-                          scale: snapshot.scale,
-                          alignment: Alignment.center,
-                          child: SizedBox.fromSize(
-                            size: snapshot.size,
-                            child: CapsuleToastAnimationScope(
-                              contentElapsed: _motion.contentElapsed,
-                              revealing: _motion.contentRevealing,
-                              reducedMotion: reducedMotion,
-                              motionTheme: motionTheme,
-                              textDirection: textDirection,
-                              capsuleSize: snapshot.size,
-                              iconTravel: iconTravel,
-                              child: CapsuleToastSurface(
-                                theme: visualTheme,
-                                measureMaxWidth: measureMaxWidth,
-                                liveSize: snapshot.size,
-                                semanticsLabel: announcement,
-                                child: CapsuleToastMeasure(
-                                  // A new token drops the layer's cached
-                                  // sizes, so the probe has to forget its own
-                                  // deduplication cache in the same beat.
-                                  generation: record.token,
-                                  onSizeChanged:
-                                      _synchronizer.handleSizeChanged,
-                                  child: child!,
-                                ),
-                              ),
-                            ),
-                          ),
+            return Transform.translate(
+              offset: Offset(0, snapshot.verticalOffset),
+              child: Opacity(
+                opacity: snapshot.opacity,
+                // Scales about the capsule's own centre, matching the
+                // reference's default transform origin.
+                child: Transform.scale(
+                  scale: snapshot.scale,
+                  alignment: Alignment.center,
+                  child: SizedBox.fromSize(
+                    size: snapshot.size,
+                    child: CapsuleToastAnimationScope(
+                      contentElapsed: _motion.contentElapsed,
+                      revealing: _motion.contentRevealing,
+                      reducedMotion: reducedMotion,
+                      motionTheme: motionTheme,
+                      textDirection: textDirection,
+                      capsuleSize: snapshot.size,
+                      iconTravel: iconTravel,
+                      child: CapsuleToastSurface(
+                        theme: visualTheme,
+                        // The viewport already clamps to the resolved maximum
+                        // width, so the incoming constraint is the measurement
+                        // budget.
+                        measureMaxWidth: constraints.maxWidth,
+                        liveSize: snapshot.size,
+                        semanticsLabel: announcement,
+                        child: CapsuleToastMeasure(
+                          // A new token drops the presentation's cached sizes,
+                          // so the probe has to forget its own deduplication
+                          // cache in the same beat.
+                          generation: record.token,
+                          onSizeChanged: _synchronizer.handleSizeChanged,
+                          child: child!,
                         ),
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+              ),
             );
           },
-        ),
-      ),
+        );
+      },
     );
   }
 }

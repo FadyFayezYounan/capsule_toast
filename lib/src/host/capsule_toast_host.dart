@@ -8,7 +8,8 @@ import '../manager/capsule_toast_manager.dart';
 import '../motion/capsule_motion_controller.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 import '../theme/capsule_toast_theme.dart';
-import '../widgets/capsule_toast_layer.dart';
+import '../widgets/capsule_toast_presentation.dart';
+import '../widgets/capsule_toast_viewport.dart';
 
 /// Application-owned host that exposes toast queue control to descendants.
 class CapsuleToastHost extends StatefulWidget {
@@ -90,10 +91,13 @@ class _CapsuleToastHostState extends State<CapsuleToastHost>
   // builder reads _motion lazily because didChangeDependencies always runs
   // before this entry's builder is first invoked.
   late final OverlayEntry _toastEntry = OverlayEntry(
-    builder: (BuildContext context) => CapsuleToastLayer(
+    builder: (BuildContext context) => CapsuleToastViewport(
       coordinator: _coordinator,
-      motion: _motion!,
-      vsync: this,
+      child: CapsuleToastPresentation(
+        coordinator: _coordinator,
+        motion: _motion!,
+        vsync: this,
+      ),
     ),
   );
 

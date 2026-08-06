@@ -16,7 +16,8 @@ import '../theme/capsule_toast_theme_data.dart';
 /// state.
 ///
 /// Owns seeding, replacement, mode retargeting, dismissal sync, measured-size
-/// caching, and haptics so `CapsuleToastLayer` can stay focused on layout.
+/// caching, and haptics so `CapsuleToastPresentation` can stay focused on
+/// layout.
 final class CapsuleToastMotionSynchronizer {
   /// Creates a synchronizer driving [motion] from [coordinator]'s records.
   CapsuleToastMotionSynchronizer({
