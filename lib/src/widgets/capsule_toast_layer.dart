@@ -5,13 +5,10 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter/services.dart';
 
 import '../manager/capsule_toast_coordinator.dart';
 import '../manager/capsule_toast_record.dart';
-import '../model/capsule_toast_data.dart';
 import '../model/capsule_toast_types.dart';
-import '../motion/capsule_lifecycle.dart';
 import '../motion/capsule_motion_controller.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 import '../theme/capsule_toast_theme.dart';
@@ -20,6 +17,7 @@ import 'capsule_toast_animated_slot.dart';
 import 'capsule_toast_content.dart';
 import 'capsule_toast_interaction.dart';
 import 'capsule_toast_measure.dart';
+import 'capsule_toast_motion_synchronizer.dart';
 import 'capsule_toast_surface.dart';
 
 /// Overlay that renders the active capsule toast for [coordinator].
@@ -59,23 +57,20 @@ class CapsuleToastLayer extends StatefulWidget {
 }
 
 class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
-  Size? _measuredSize;
-  Size? _compactSize;
-  Size? _expandedSize;
-  int? _activeToken;
-  int _activeRevision = -1;
-  CapsuleToastMode? _activeMode;
-  CapsuleToastDismissReason? _pendingDismissal;
-  bool _motionStarted = false;
   bool _syncScheduled = false;
-  bool _entranceHapticFired = false;
-  bool _resolveHapticPending = false;
+
+  late CapsuleToastMotionSynchronizer _synchronizer;
 
   CapsuleMotionController get _motion => widget.motion;
 
   @override
   void initState() {
     super.initState();
+    _synchronizer = CapsuleToastMotionSynchronizer(
+      coordinator: widget.coordinator,
+      motion: widget.motion,
+      scheduleSync: _scheduleMotionSync,
+    );
     widget.coordinator.addListener(_handleCoordinatorChanged);
     _motion.addListener(_handleMotionChanged);
   }
@@ -90,6 +85,14 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     if (oldWidget.motion != widget.motion) {
       oldWidget.motion.removeListener(_handleMotionChanged);
       widget.motion.addListener(_handleMotionChanged);
+    }
+    if (oldWidget.coordinator != widget.coordinator ||
+        oldWidget.motion != widget.motion) {
+      _synchronizer = CapsuleToastMotionSynchronizer(
+        coordinator: widget.coordinator,
+        motion: widget.motion,
+        scheduleSync: _scheduleMotionSync,
+      );
     }
   }
 
@@ -131,7 +134,19 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   }
 
   void _handleMotionChanged() {
-    _maybeTriggerHaptic();
+    if (!mounted) {
+      return;
+    }
+    final CapsuleToastRecord? record = widget.coordinator.active;
+    final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
+      context,
+    ).merge(record?.data.motionTheme);
+    final bool reducedMotion = _isReducedMotion(motionTheme);
+    _synchronizer.handleMotionChanged(
+      record: record,
+      motionTheme: motionTheme,
+      reducedMotion: reducedMotion,
+    );
   }
 
   void _scheduleMotionSync() {
@@ -148,170 +163,21 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     });
   }
 
-  Duration? _resolveHoldDuration(
-    CapsuleToastData data,
-    CapsuleToastMotionTheme motionTheme,
-  ) {
-    if (data.persistent) {
-      return null;
-    }
-    return data.displayDuration ?? motionTheme.durationFor(data.type);
-  }
-
-  void _resetTracking() {
-    _motionStarted = false;
-    _activeToken = null;
-    _activeRevision = -1;
-    _activeMode = null;
-    _pendingDismissal = null;
-    _measuredSize = null;
-    _compactSize = null;
-    _expandedSize = null;
-    _entranceHapticFired = false;
-    _resolveHapticPending = false;
-  }
-
   void _syncMotion() {
     final CapsuleToastRecord? record = widget.coordinator.active;
-    if (record == null) {
-      _resetTracking();
-      return;
-    }
-
     final CapsuleToastThemeData visualTheme = CapsuleToastTheme.resolve(
       context,
-    ).merge(record.data.theme);
+    ).merge(record?.data.theme);
     final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
       context,
-    ).merge(record.data.motionTheme);
-    _motion.updateMotionTheme(motionTheme);
-    _motion.setReducedMotion(_isReducedMotion(motionTheme));
-
-    final Size seed = visualTheme.seedSize ?? const Size(84, 34);
-    _motion.updateSeedSize(seed);
-    final Size target = _measuredSize ?? seed;
-    final Duration? holdDuration = _resolveHoldDuration(
-      record.data,
-      motionTheme,
+    ).merge(record?.data.motionTheme);
+    final bool reducedMotion = _isReducedMotion(motionTheme);
+    _synchronizer.synchronize(
+      record: record,
+      visualTheme: visualTheme,
+      motionTheme: motionTheme,
+      reducedMotion: reducedMotion,
     );
-
-    final bool tokenChanged = _activeToken != record.token;
-    final bool revisionChanged = _activeRevision != record.revision;
-    final bool modeChanged = _activeMode != record.desiredMode;
-
-    if (!_motionStarted || tokenChanged) {
-      if (_motionStarted && tokenChanged) {
-        // A new token is a new event, never a continuation of the old one, so
-        // it always re-seeds: geometry snaps back to the resolved theme seed at
-        // zero opacity and replays the entrance. The reference gets this from
-        // swapping `item` identity, which re-runs its seeding effect. Sizes
-        // measured for the outgoing content are dropped — the probes report
-        // the incoming content's own sizes on the next layout.
-        _measuredSize = null;
-        _compactSize = null;
-        _expandedSize = null;
-        _motion.show(
-          target: seed,
-          mode: record.desiredMode,
-          holdDuration: holdDuration,
-        );
-      } else {
-        _motion.show(
-          target: target,
-          mode: record.desiredMode,
-          holdDuration: holdDuration,
-        );
-      }
-      _motionStarted = true;
-      _activeToken = record.token;
-      _activeRevision = record.revision;
-      _activeMode = record.desiredMode;
-      _pendingDismissal = null;
-      _entranceHapticFired = false;
-      _resolveHapticPending = false;
-    } else if (revisionChanged) {
-      _motion.resolve(
-        target: target,
-        mode: record.desiredMode,
-        holdDuration: holdDuration,
-      );
-      _activeRevision = record.revision;
-      _activeMode = record.desiredMode;
-      _resolveHapticPending = true;
-    } else if (modeChanged) {
-      // Retarget immediately so a following pump(duration) advances springs
-      // toward the new mode. tester.tap does not pump after pointer-up, so
-      // waiting for measure alone leaves the ticker on the old size.
-      // Retarget immediately so a following pump(duration) advances springs
-      // toward the new mode. tester.tap does not pump after pointer-up, so
-      // waiting for measure alone leaves the ticker on the old size.
-      //
-      // Each mode's size is cached the first time it is laid out, so after one
-      // round trip the target is exact. Before that, hold the current size
-      // rather than estimating: measure lands next frame either way, and an
-      // invented target would aim the spring somewhere the capsule is never
-      // going.
-      _activeMode = record.desiredMode;
-      final Size current = _motion.value.size;
-      if (record.desiredMode == CapsuleToastMode.expanded) {
-        _motion.expand(_expandedSize ?? current);
-      } else {
-        _motion.collapse(_compactSize ?? current);
-      }
-    } else if (_measuredSize != null) {
-      _motion.retarget(_measuredSize!);
-    }
-
-    final CapsuleToastDismissReason? pending = record.pendingDismissal;
-    if (pending != null && pending != _pendingDismissal) {
-      _pendingDismissal = pending;
-      _motion.dismiss(pending, velocity: record.dismissalVelocity);
-    }
-  }
-
-  void _handleSizeChanged(Size size) {
-    if (_measuredSize == size) {
-      return;
-    }
-    _measuredSize = size;
-    final CapsuleToastRecord? record = widget.coordinator.active;
-    if (record != null) {
-      if (record.desiredMode == CapsuleToastMode.compact) {
-        _compactSize = size;
-      } else {
-        _expandedSize = size;
-      }
-    }
-    if (!_motionStarted) {
-      _scheduleMotionSync();
-      return;
-    }
-    if (record == null) {
-      return;
-    }
-    if (_activeToken != record.token || _activeRevision != record.revision) {
-      _scheduleMotionSync();
-      return;
-    }
-    if (_activeMode != record.desiredMode) {
-      _scheduleMotionSync();
-      return;
-    }
-
-    final CapsuleLifecycleState state = _motion.value.state;
-    if (record.desiredMode == CapsuleToastMode.expanded &&
-        state != CapsuleLifecycleState.expanded &&
-        state != CapsuleLifecycleState.collapsing &&
-        state != CapsuleLifecycleState.hidden) {
-      _motion.expand(size);
-      return;
-    }
-    if (record.desiredMode == CapsuleToastMode.compact &&
-        state == CapsuleLifecycleState.expanded) {
-      _motion.collapse(size);
-      return;
-    }
-    _motion.retarget(size);
   }
 
   /// Distance the leading icon travels from the capsule centre to its rest
@@ -326,8 +192,11 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     required Size liveSize,
   }) {
     final bool compact = record.desiredMode == CapsuleToastMode.compact;
-    final Size? modeSize = compact ? _compactSize : _expandedSize;
-    final double targetWidth = (modeSize ?? _measuredSize ?? liveSize).width;
+    final Size? modeSize = compact
+        ? _synchronizer.compactSize
+        : _synchronizer.expandedSize;
+    final double targetWidth =
+        (modeSize ?? _synchronizer.measuredSize ?? liveSize).width;
     final EdgeInsets padding =
         (compact ? visualTheme.compactPadding! : visualTheme.expandedPadding!)
             .resolve(textDirection);
@@ -353,65 +222,15 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     };
   }
 
-  bool _shouldTriggerHaptic(CapsuleToastMotionTheme motionTheme) {
-    if (motionTheme.hapticPolicy !=
-        CapsuleToastHapticPolicy.supportedPlatforms) {
-      return false;
-    }
-    if (_isReducedMotion(motionTheme)) {
-      return false;
-    }
-    if (kIsWeb) {
-      return false;
-    }
-    return defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
-  }
-
-  void _maybeTriggerHaptic() {
-    final CapsuleToastRecord? record = widget.coordinator.active;
-    if (record == null || !mounted) {
-      return;
-    }
-    final CapsuleMotionSnapshot snapshot = _motion.value;
-    if (!snapshot.isSettled) {
-      return;
-    }
-    final CapsuleToastMotionTheme motionTheme = CapsuleToastTheme.resolveMotion(
-      context,
-    ).merge(record.data.motionTheme);
-    if (!_shouldTriggerHaptic(motionTheme)) {
-      _entranceHapticFired = true;
-      _resolveHapticPending = false;
-      return;
-    }
-    if (!_entranceHapticFired) {
-      _entranceHapticFired = true;
-      _resolveHapticPending = false;
-      HapticFeedback.lightImpact();
-      return;
-    }
-    if (_resolveHapticPending) {
-      _resolveHapticPending = false;
-      HapticFeedback.lightImpact();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final CapsuleToastRecord? record = widget.coordinator.active;
     if (record == null) {
-      if (_motionStarted) {
-        _resetTracking();
-      }
+      _synchronizer.reset();
       return const SizedBox.shrink();
     }
 
-    if (!_motionStarted ||
-        _activeToken != record.token ||
-        _activeRevision != record.revision ||
-        _activeMode != record.desiredMode ||
-        record.pendingDismissal != _pendingDismissal) {
+    if (_synchronizer.needsSynchronization(record)) {
       _scheduleMotionSync();
     }
 
@@ -512,7 +331,8 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
                                   // sizes, so the probe has to forget its own
                                   // deduplication cache in the same beat.
                                   generation: record.token,
-                                  onSizeChanged: _handleSizeChanged,
+                                  onSizeChanged:
+                                      _synchronizer.handleSizeChanged,
                                   child: child!,
                                 ),
                               ),
