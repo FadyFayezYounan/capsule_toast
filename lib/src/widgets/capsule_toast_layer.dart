@@ -3,7 +3,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -17,10 +16,11 @@ import '../motion/capsule_motion_controller.dart';
 import '../theme/capsule_toast_motion_theme.dart';
 import '../theme/capsule_toast_theme.dart';
 import '../theme/capsule_toast_theme_data.dart';
+import 'capsule_toast_animated_slot.dart';
 import 'capsule_toast_content.dart';
+import 'capsule_toast_interaction.dart';
 import 'capsule_toast_measure.dart';
 import 'capsule_toast_surface.dart';
-import 'capsule_toast_animated_slot.dart';
 
 /// Overlay that renders the active capsule toast for [coordinator].
 class CapsuleToastLayer extends StatefulWidget {
@@ -68,19 +68,8 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   CapsuleToastDismissReason? _pendingDismissal;
   bool _motionStarted = false;
   bool _syncScheduled = false;
-  bool _pointerDown = false;
-  bool _hovering = false;
-  bool _dragging = false;
-  bool _longPressActive = false;
-  double _dragDy = 0;
   bool _entranceHapticFired = false;
   bool _resolveHapticPending = false;
-  final FocusNode _capsuleFocusNode = FocusNode(
-    debugLabel: 'capsule_toast.surface',
-  );
-  final FocusScopeNode _toastFocusScope = FocusScopeNode(
-    debugLabel: 'capsule_toast.scope',
-  );
 
   CapsuleMotionController get _motion => widget.motion;
 
@@ -105,11 +94,27 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
   }
 
   @override
+  void deactivate() {
+    // Unhook eagerly, before deactivation reaches descendants. Interaction
+    // state now lives in a child (CapsuleToastInteraction) whose dispose()
+    // calls motion.setInteractionPaused(false); the framework deactivates
+    // this element before that child unmounts, so leaving the listener
+    // attached until dispose() would let that notification reach a haptics
+    // handler that reads an already-deactivated ancestor's Theme.
+    _motion.removeListener(_handleMotionChanged);
+    super.deactivate();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _motion.addListener(_handleMotionChanged);
+  }
+
+  @override
   void dispose() {
     _motion.removeListener(_handleMotionChanged);
     widget.coordinator.removeListener(_handleCoordinatorChanged);
-    _capsuleFocusNode.dispose();
-    _toastFocusScope.dispose();
     super.dispose();
   }
 
@@ -162,20 +167,8 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _measuredSize = null;
     _compactSize = null;
     _expandedSize = null;
-    _pointerDown = false;
-    _hovering = false;
-    _dragging = false;
-    _longPressActive = false;
-    _dragDy = 0;
     _entranceHapticFired = false;
     _resolveHapticPending = false;
-    _syncInteractionPaused();
-  }
-
-  void _syncInteractionPaused() {
-    _motion.setInteractionPaused(
-      _pointerDown || _hovering || _dragging || _longPressActive,
-    );
   }
 
   void _syncMotion() {
@@ -236,18 +229,6 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
       _pendingDismissal = null;
       _entranceHapticFired = false;
       _resolveHapticPending = false;
-      _dragDy = 0;
-      _dragging = false;
-      _longPressActive = false;
-      WidgetsBinding.instance.addPostFrameCallback((Duration _) {
-        if (!mounted || _activeToken != record.token) {
-          return;
-        }
-        // The overlay sits beside the route's modal focus scope, so traversal
-        // cannot discover it from the route. Focus the toast scope first;
-        // the next Tab then reaches the capsule surface followed by actions.
-        _toastFocusScope.requestFocus();
-      });
     } else if (revisionChanged) {
       _motion.resolve(
         target: target,
@@ -333,74 +314,6 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     _motion.retarget(size);
   }
 
-  void _toggleMode(CapsuleToastRecord record) {
-    if (record.desiredMode == CapsuleToastMode.compact) {
-      widget.coordinator.expand(record.token);
-    } else {
-      widget.coordinator.collapse(record.token);
-    }
-  }
-
-  void _expand(CapsuleToastRecord record) {
-    widget.coordinator.expand(record.token);
-  }
-
-  void _startDrag(DragStartDetails details) {
-    _dragging = true;
-    _dragDy = 0;
-    _syncInteractionPaused();
-    _motion.beginDrag();
-  }
-
-  void _updateDrag(
-    DragUpdateDetails details,
-    CapsuleToastMotionTheme motionTheme,
-  ) {
-    _dragDy += details.delta.dy;
-    final double resistance = motionTheme.downwardDragResistance ?? 0.22;
-    final double visual = _dragDy < 0 ? _dragDy : _dragDy * resistance;
-    _motion.updateDragOffset(visual);
-  }
-
-  void _finishDrag(
-    DragEndDetails details,
-    CapsuleToastRecord record,
-    CapsuleToastMotionTheme motionTheme,
-  ) {
-    final double resistance = motionTheme.downwardDragResistance ?? 0.22;
-    final double visual = _dragDy < 0 ? _dragDy : _dragDy * resistance;
-    final double dismissalDistance = motionTheme.dismissalDistance ?? 26;
-    final double dismissalVelocity = motionTheme.dismissalVelocity ?? 420;
-    final double velocity = details.primaryVelocity ?? 0;
-    final bool shouldDismiss =
-        visual <= -dismissalDistance || -velocity >= dismissalVelocity;
-
-    _dragging = false;
-    _dragDy = 0;
-    _pointerDown = false;
-    _longPressActive = false;
-    _syncInteractionPaused();
-
-    if (shouldDismiss) {
-      widget.coordinator.requestDismiss(
-        record.token,
-        CapsuleToastDismissReason.swiped,
-        velocity: velocity.abs(),
-      );
-    } else {
-      _motion.cancelDrag();
-    }
-  }
-
-  void _cancelDrag() {
-    _dragging = false;
-    _dragDy = 0;
-    _pointerDown = false;
-    _longPressActive = false;
-    _syncInteractionPaused();
-    _motion.cancelDrag();
-  }
-
   /// Distance the leading icon travels from the capsule centre to its rest
   /// position, signed for [textDirection].
   ///
@@ -484,134 +397,6 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
     }
   }
 
-  Widget _buildInteractiveCapsule({
-    required CapsuleToastRecord record,
-    required CapsuleToastMotionTheme motionTheme,
-    required Widget child,
-  }) {
-    // Own focus scope so action controls are reachable by Tab even though the
-    // toast layer sits beside (not inside) the navigator route FocusScope.
-    return FocusScope(
-      node: _toastFocusScope,
-      child: FocusTraversalGroup(
-        child: FocusableActionDetector(
-          focusNode: _capsuleFocusNode,
-          descendantsAreFocusable: true,
-          descendantsAreTraversable: true,
-          shortcuts: const <ShortcutActivator, Intent>{
-            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
-            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
-          },
-          actions: <Type, Action<Intent>>{
-            ActivateIntent: CallbackAction<ActivateIntent>(
-              onInvoke: (ActivateIntent intent) {
-                // Only toggle when the capsule surface itself is focused —
-                // action buttons handle ActivateIntent with their own Actions.
-                if (_capsuleFocusNode.hasFocus) {
-                  _toggleMode(record);
-                }
-                return null;
-              },
-            ),
-          },
-          child: MouseRegion(
-            onEnter: (_) {
-              _hovering = true;
-              _syncInteractionPaused();
-            },
-            onExit: (_) {
-              _hovering = false;
-              _syncInteractionPaused();
-            },
-            child: Listener(
-              behavior: HitTestBehavior.opaque,
-              onPointerDown: (_) {
-                _pointerDown = true;
-                _syncInteractionPaused();
-              },
-              onPointerUp: (_) {
-                _pointerDown = false;
-                _longPressActive = false;
-                _syncInteractionPaused();
-              },
-              onPointerCancel: (_) {
-                _pointerDown = false;
-                _longPressActive = false;
-                _dragging = false;
-                _syncInteractionPaused();
-              },
-              child: RawGestureDetector(
-                behavior: HitTestBehavior.opaque,
-                gestures: <Type, GestureRecognizerFactory>{
-                  TapGestureRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                        TapGestureRecognizer
-                      >(TapGestureRecognizer.new, (
-                        TapGestureRecognizer recognizer,
-                      ) {
-                        recognizer
-                          ..onTapDown = (TapDownDetails _) {
-                            _pointerDown = true;
-                            _syncInteractionPaused();
-                          }
-                          ..onTapCancel = () {
-                            // Pointer may still be down for long-press/drag;
-                            // Listener onPointerUp clears the pause.
-                          }
-                          ..onTapUp = (TapUpDetails _) {
-                            _capsuleFocusNode.requestFocus();
-                            _toggleMode(record);
-                          };
-                      }),
-                  LongPressGestureRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                        LongPressGestureRecognizer
-                      >(
-                        () => LongPressGestureRecognizer(
-                          duration:
-                              motionTheme.longPressDuration ??
-                              const Duration(milliseconds: 320),
-                        ),
-                        (LongPressGestureRecognizer recognizer) {
-                          recognizer
-                            ..onLongPressStart = (LongPressStartDetails _) {
-                              _longPressActive = true;
-                              _pointerDown = true;
-                              _syncInteractionPaused();
-                              _expand(record);
-                            }
-                            ..onLongPressEnd = (LongPressEndDetails _) {
-                              _longPressActive = false;
-                              _syncInteractionPaused();
-                            };
-                        },
-                      ),
-                  VerticalDragGestureRecognizer:
-                      GestureRecognizerFactoryWithHandlers<
-                        VerticalDragGestureRecognizer
-                      >(VerticalDragGestureRecognizer.new, (
-                        VerticalDragGestureRecognizer recognizer,
-                      ) {
-                        recognizer
-                          ..onStart = _startDrag
-                          ..onUpdate = (DragUpdateDetails details) {
-                            _updateDrag(details, motionTheme);
-                          }
-                          ..onEnd = (DragEndDetails details) {
-                            _finishDrag(details, record, motionTheme);
-                          }
-                          ..onCancel = _cancelDrag;
-                      }),
-                },
-                child: child,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final CapsuleToastRecord? record = widget.coordinator.active;
@@ -650,8 +435,10 @@ class _CapsuleToastLayerState extends State<CapsuleToastLayer> {
 
     // Keep gesture detectors outside AnimatedBuilder so recognizers are not
     // recreated on every spring tick.
-    final Widget interactiveChild = _buildInteractiveCapsule(
+    final Widget interactiveChild = CapsuleToastInteraction(
       record: record,
+      coordinator: widget.coordinator,
+      motion: _motion,
       motionTheme: motionTheme,
       child: DefaultTextStyle.merge(
         style: appTheme.textTheme.bodyMedium,

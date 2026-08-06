@@ -4,10 +4,26 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:capsule_toast/capsule_toast.dart';
+import 'package:capsule_toast/src/widgets/capsule_toast_interaction.dart';
 
 import '../support/test_app.dart';
 
 void main() {
+  testWidgets('presentation delegates input to CapsuleToastInteraction', (
+    tester,
+  ) async {
+    await pumpToast(
+      tester,
+      CapsuleToastData.information(
+        title: 'Interactive',
+        message: 'Details',
+        persistent: true,
+      ),
+    );
+
+    expect(find.byType(CapsuleToastInteraction), findsOneWidget);
+  });
+
   testWidgets('tap toggles compact and expanded modes', (tester) async {
     await pumpToast(
       tester,
